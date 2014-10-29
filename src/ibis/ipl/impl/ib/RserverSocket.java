@@ -1,32 +1,57 @@
 package ibis.ipl.impl.ib;
 
+import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
 public class RserverSocket {
 
-    public Rsocket accept() {
-        // TODO Auto-generated method stub
-        return null;
+    private boolean closed = false;
+
+    private int localport;
+
+    private InetAddress address;
+
+    native void socketBind(InetAddress address, int port) throws IOException;
+
+    native void socketListen(int count) throws IOException;
+
+    native void socketAccept(Rsocket s) throws IOException;
+
+    native void socketClose();
+
+    public Rsocket accept() throws IOException {
+	Rsocket s = new Rsocket();
+	socketAccept(s);
+	return s;
     }
 
     public SocketAddress getLocalSocketAddress() {
-        // TODO Auto-generated method stub
-        return null;
+	return new InetSocketAddress(getInetAddress(), localport);
+    }
+
+    private InetAddress getInetAddress() {
+	// TODO Auto-generated method stub
+	return null;
     }
 
     public void close() {
-        // TODO Auto-generated method stub
+	socketClose();
+	closed = true;
+    }
+
+    public void bind(InetSocketAddress local, int backlog) throws IOException {
+	if (backlog < 1) {
+	    backlog = 50;
+	}
+	socketBind(local.getAddress(), local.getPort());
+	socketListen(backlog);
 
     }
 
-    public void bind(InetSocketAddress local, int backlog) {
-        // TODO Auto-generated method stub
-
-    }
-
-    public void bind(InetSocketAddress local) {
-        bind(local, -1);
+    public void bind(InetSocketAddress local) throws IOException {
+	bind(local, -1);
     }
 
 }
