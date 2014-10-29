@@ -28,12 +28,7 @@ public class RserverSocket {
     }
 
     public SocketAddress getLocalSocketAddress() {
-	return new InetSocketAddress(getInetAddress(), localport);
-    }
-
-    private InetAddress getInetAddress() {
-	// TODO Auto-generated method stub
-	return null;
+	return new InetSocketAddress(address, localport);
     }
 
     public void close() {
@@ -46,6 +41,8 @@ public class RserverSocket {
 	    backlog = 50;
 	}
 	socketBind(local.getAddress(), local.getPort());
+	// If successful, socketBind sets address and localport.
+
 	socketListen(backlog);
 
     }
