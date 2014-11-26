@@ -515,13 +515,19 @@ public final class ByteBufferInputStream extends DataInputStream {
 	    }
 	    len -= l;
 	}
-	while (len > 0) {
-	    int n = in.read(value);
-	    if (n < 0) {
-		throw new java.io.EOFException("EOF encountered");
+	if (value.isDirect()) {
+	    while (len > 0) {
+		int n = in.read(value);
+		if (n < 0) {
+		    throw new java.io.EOFException("EOF encountered");
+		}
+		bytes += n;
+		len -= n;
 	    }
-	    bytes += n;
-	    len -= n;
+	} else {
+	    byte[] b = value.array();
+	    int off = value.arrayOffset() + value.position();
+	    readArray(b, off, len);
 	}
     }
 }

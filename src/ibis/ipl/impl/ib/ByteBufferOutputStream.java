@@ -370,12 +370,12 @@ public final class ByteBufferOutputStream extends DataOutputStream {
     @Override
     public void writeByteBuffer(ByteBuffer value) throws IOException {
 	int len = value.limit() - value.position();
-	if (buffer.position() + len > BUF_SIZE || !value.hasArray()) {
+	if (value.isDirect()) {
 	    flush();
 	    out.write(value);
-	} else {
-	    buffer.put(value.array(), value.arrayOffset() + value.position(),
-		    value.arrayOffset() + value.limit());
+	    return;
 	}
+	writeArray(value.array(), value.arrayOffset() + value.position(),
+		value.arrayOffset() + value.limit());
     }
 }
