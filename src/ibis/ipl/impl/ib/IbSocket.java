@@ -1,30 +1,30 @@
 package ibis.ipl.impl.ib;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 
 class IbSocket {
 
     Rsocket socket = null;
-    InputStream in;
-    OutputStream out;
+    WritableByteChannel out;
+    ReadableByteChannel in;
 
     IbSocket(Rsocket s) throws IOException {
 	socket = s;
-	in = s.getInputStream();
-	out = s.getOutputStream();
+	in = s.getInputChannel();
+	out = s.getOutputChannel();
     }
 
     void setTcpNoDelay(boolean val) throws IOException {
 	socket.setTcpNoDelay(val);
     }
 
-    java.io.OutputStream getOutputStream() throws IOException {
+    WritableByteChannel getOutputChannel() throws IOException {
 	return out;
     }
 
-    java.io.InputStream getInputStream() throws IOException {
+    ReadableByteChannel getInputChannel() throws IOException {
 	return in;
     }
 
@@ -33,6 +33,8 @@ class IbSocket {
 	    socket.close();
 	} finally {
 	    socket = null;
+	    in = null;
+	    out = null;
 	}
     }
 
