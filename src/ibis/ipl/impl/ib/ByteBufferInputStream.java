@@ -530,4 +530,12 @@ public final class ByteBufferInputStream extends DataInputStream {
 	    readArray(b, off, len);
 	}
     }
+
+    public void clear() {
+	buffer = null;
+    }
+
+    public void setByteOrder(ByteOrder order) {
+	buffer.order(order);
+    }
 }

@@ -5,7 +5,6 @@ package ibis.ipl.impl.ib;
 import ibis.util.ThreadPool;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
@@ -114,7 +113,7 @@ public final class OutputStreamSplitter implements WritableByteChannel {
 	out.add(s);
     }
 
-    public synchronized void remove(OutputStream s) throws IOException {
+    public synchronized void remove(WritableByteChannel s) throws IOException {
 
 	while (numSenders != 0) {
 	    try {

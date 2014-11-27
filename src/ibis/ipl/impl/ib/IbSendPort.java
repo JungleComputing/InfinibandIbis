@@ -2,7 +2,6 @@
 
 package ibis.ipl.impl.ib;
 
-import ibis.io.BufferedArrayOutputStream;
 import ibis.io.Conversion;
 import ibis.ipl.PortType;
 import ibis.ipl.SendPortDisconnectUpcall;
@@ -14,6 +13,7 @@ import ibis.ipl.impl.SendPortIdentifier;
 import ibis.ipl.impl.WriteMessage;
 
 import java.io.IOException;
+import java.nio.channels.WritableByteChannel;
 import java.util.Properties;
 
 final class IbSendPort extends SendPort implements IbProtocol {
@@ -21,13 +21,13 @@ final class IbSendPort extends SendPort implements IbProtocol {
     private class Conn extends SendPortConnectionInfo {
 	IbSocket s;
 
-	OutputStream out;
+	WritableByteChannel out;
 
 	Conn(IbSocket s, IbSendPort port, ReceivePortIdentifier target)
 		throws IOException {
 	    super(port, target);
 	    this.s = s;
-	    out = s.getOutputStream();
+	    out = s.getOutputChannel();
 	    splitter.add(out);
 	}
 
@@ -49,7 +49,7 @@ final class IbSendPort extends SendPort implements IbProtocol {
 
     final OutputStreamSplitter splitter;
 
-    final BufferedArrayOutputStream bufferedStream;
+    final ByteBufferOutputStream bufferedStream;
 
     IbSendPort(Ibis ibis, PortType type, String name,
 	    SendPortDisconnectUpcall cU, Properties props) throws IOException {
@@ -62,7 +62,7 @@ final class IbSendPort extends SendPort implements IbProtocol {
 		type.hasCapability(PortType.CONNECTION_ONE_TO_MANY)
 			|| type.hasCapability(PortType.CONNECTION_MANY_TO_MANY));
 
-	bufferedStream = new BufferedArrayOutputStream(splitter);
+	bufferedStream = new ByteBufferOutputStream(splitter);
 	initStream(bufferedStream);
     }
 
@@ -154,7 +154,7 @@ final class IbSendPort extends SendPort implements IbProtocol {
 	    SplitterException e = (SplitterException) x;
 
 	    Exception[] exceptions = e.getExceptions();
-	    OutputStream[] streams = e.getStreams();
+	    WritableByteChannel[] streams = e.getStreams();
 
 	    for (int i = 0; i < ports.length; i++) {
 		Conn c = (Conn) getInfo(ports[i]);

@@ -362,6 +362,11 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 	out.close();
     }
 
+    public void clear() throws IOException {
+	flush();
+	buffer = null;
+    }
+
     @Override
     public int bufferSize() {
 	return BUF_SIZE;

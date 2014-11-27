@@ -26,6 +26,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.Properties;
 
@@ -117,6 +118,8 @@ public final class IbIbis extends ibis.ipl.impl.Ibis implements Runnable,
 
 	do {
 	    DataOutputStream out = null;
+	    DataInputStream in = null;
+	    ByteBufferInputStream bin = null;
 	    IbSocket s = null;
 	    int result = -1;
 
@@ -126,16 +129,22 @@ public final class IbIbis extends ibis.ipl.impl.Ibis implements Runnable,
 		s = factory.createClientSocket(idAddr, timeout, fillTimeout,
 			sp.managementProperties());
 		s.setTcpNoDelay(true);
-		out = new DataOutputStream(new BufferedArrayOutputStream(
-			s.getOutputStream()));
-
+		out = new DataOutputStream(new ByteBufferOutputStream(
+			s.getOutputChannel()));
+		out.writeByte(ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN ? 0
+			: 1);
 		out.writeUTF(name);
 		sp.getIdent().writeTo(out);
 		sendPortType.writeTo(out);
 		out.flush();
 
-		result = s.getInputStream().read();
-
+		bin = new ByteBufferInputStream(s.getInputChannel(),
+			ByteOrder.LITTLE_ENDIAN);
+		in = new DataInputStream(bin);
+		ByteOrder order = in.readByte() == 1 ? ByteOrder.BIG_ENDIAN
+			: ByteOrder.LITTLE_ENDIAN;
+		bin.setByteOrder(order);
+		result = in.read();
 		switch (result) {
 		case ReceivePort.ACCEPTED:
 		    return s;
@@ -145,7 +154,6 @@ public final class IbIbis extends ibis.ipl.impl.Ibis implements Runnable,
 		case ReceivePort.TYPE_MISMATCH:
 		    // Read receiveport type from input, to produce a
 		    // better error message.
-		    DataInputStream in = new DataInputStream(s.getInputStream());
 		    PortType rtp = new PortType(in);
 		    CapabilitySet s1 = rtp.unmatchedCapabilities(sendPortType);
 		    CapabilitySet s2 = sendPortType.unmatchedCapabilities(rtp);
@@ -192,6 +200,9 @@ public final class IbIbis extends ibis.ipl.impl.Ibis implements Runnable,
 			if (out != null) {
 			    out.close();
 			}
+			if (in != null) {
+			    in.close();
+			}
 		    } catch (Throwable e) {
 			// ignored
 		    }
@@ -200,6 +211,9 @@ public final class IbIbis extends ibis.ipl.impl.Ibis implements Runnable,
 		    } catch (Throwable e) {
 			// ignored
 		    }
+		}
+		if (bin != null) {
+		    bin.clear();
 		}
 	    }
 	    try {
@@ -227,12 +241,17 @@ public final class IbIbis extends ibis.ipl.impl.Ibis implements Runnable,
 	    logger.debug("--> IbIbis got connection request from " + s);
 	}
 
-	BufferedArrayInputStream bais = new BufferedArrayInputStream(
-		s.getInputStream());
+	ByteBufferInputStream bais = new ByteBufferInputStream(
+		s.getInputChannel(), ByteOrder.LITTLE_ENDIAN);
 
 	DataInputStream in = new DataInputStream(bais);
-	OutputStream out = s.getOutputStream();
+	ByteBufferOutputStream bout = new ByteBufferOutputStream(
+		s.getOutputChannel());
+	DataOutputStream out = new DataOutputStream(bout);
 
+	ByteOrder order = in.readByte() == 1 ? ByteOrder.BIG_ENDIAN
+		: ByteOrder.LITTLE_ENDIAN;
+	bais.setByteOrder(order);
 	String name = in.readUTF();
 	SendPortIdentifier send = new SendPortIdentifier(in);
 	PortType sp = new PortType(in);
@@ -254,14 +273,14 @@ public final class IbIbis extends ibis.ipl.impl.Ibis implements Runnable,
 		    + ReceivePort.getString(result));
 	}
 
+	out.writeByte(ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN ? 1 : 0);
 	out.write(result);
 	if (result == ReceivePort.TYPE_MISMATCH) {
-	    DataOutputStream dout = new DataOutputStream(out);
-	    rp.getPortType().writeTo(dout);
-	    dout.flush();
+	    rp.getPortType().writeTo(out);
 	}
 	out.flush();
 	if (result == ReceivePort.ACCEPTED) {
+	    bout.clear();
 	    // add the connection to the receiveport.
 	    rp.connect(send, s, bais);
 	    if (logger.isDebugEnabled()) {
