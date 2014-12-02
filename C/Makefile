@@ -1,10 +1,10 @@
 CC		= gcc
-CFLAGS		= -fPIC -I../include/infiniband -I../include/rdma
+CFLAGS		= -fPIC
 LFLAGS		= -shared -o $(SONAME)
 AR		= ar
 ARFLAGS		= cru
 RANLIB		= ranlib
-LIBS		= ../lib/librdmacm.a
+LIBS		= lib/librdmacm.a
 SRC		= ibcomm.c common.c
 OBJ		= $(SRC:.c=.o)
 SONAME		= libibcomm.so
