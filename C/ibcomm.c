@@ -36,7 +36,7 @@ static int flags = MSG_DONTWAIT;
 #endif
 
 static int poll_timeout = 0;
-static char *port = "7471";
+static char *port = "0";
 static int keepalive = 0;
 static struct addrinfo ai_hints;
 static int countm1Sent = 0;
@@ -271,14 +271,18 @@ static void set_options(int rs)
 static int server_listen(void)
 {
     struct addrinfo *ai;
+    struct addrinfo hints;
     int val, ret;
+
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_flags = AI_PASSIVE;
 
 #if DEBUG
     puts("server_listen");
     fflush(stdout);
 #endif
-    ai_hints.ai_flags |= AI_PASSIVE;
-    ret = getaddrinfo(NULL, port, &ai_hints, &ai);
+    ret = getaddrinfo(NULL, port, &hints, &ai);
 
     if (ret) {
 	perror("getaddrinfo");
@@ -327,12 +331,12 @@ free:
     }
 }
 
-static int server_connect(int l_sockfd)
+static int myAccept(int l_sockfd)
 {
     int sockfd;
 
 #if DEBUG
-    puts("server_connect");
+    puts("myAccept");
     fflush(stdout);
 #endif
 
@@ -346,7 +350,7 @@ static int server_connect(int l_sockfd)
 
     set_options(sockfd);
 #if DEBUG
-    puts("done server_connect");
+    puts("done myAccept");
     fflush(stdout);
 #endif
     return sockfd;
@@ -372,7 +376,7 @@ int myserverConnect() {
 	set_options(l_sockfd);
     }
 
-    if ((sockfd = server_connect(l_sockfd)) < 0) {
+    if ((sockfd = myAccept(l_sockfd)) < 0) {
 	return sockfd;
     }
 

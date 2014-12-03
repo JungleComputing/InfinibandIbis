@@ -1,14 +1,12 @@
 package ibis.ipl.impl.ib;
 
+import ibis.ipl.ConnectionFailedException;
 import ibis.ipl.IbisConfigurationException;
+import ibis.ipl.ReceivePortIdentifier;
 import ibis.ipl.impl.IbisIdentifier;
-import ibis.util.IPUtils;
 import ibis.util.TypedProperties;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.util.Map;
-import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,22 +23,16 @@ class IbSocketFactory {
     void setIdent(IbisIdentifier id) {
     }
 
-    IbServerSocket createServerSocket(int port, int backlog, boolean retry,
-	    Properties properties) throws IOException {
-	RserverSocket server = new RserverSocket();
-	InetSocketAddress local = new InetSocketAddress(
-		IPUtils.getLocalHostAddress(), port);
-	server.bind(local, backlog);
-	return new IbServerSocket(server);
+    IbServerSocket createServerSocket() throws IOException {
+	return new IbServerSocket();
     }
 
-    IbSocket createClientSocket(IbSocketAddress addr, int timeout,
-	    boolean fillTimeout, Map<String, String> properties)
-	    throws IOException {
+    IbSocket createClientSocket(String addr, int timeout, boolean fillTimeout,
+	    ReceivePortIdentifier id) throws ConnectionFailedException {
 
-	Rsocket s = new Rsocket();
-	s.connect(addr.address, timeout);
-	return new IbSocket(s);
+	IbSocket s = new IbSocket();
+	s.connect(addr, timeout, id);
+	return s;
     }
 
     void printStatistics(String s) {

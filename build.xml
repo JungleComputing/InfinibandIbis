@@ -1,0 +1,93 @@
+<project name="InfinibandIbis" basedir="." default="jar">
+
+    <!-- properties for this project -->
+
+    <property environment="env"/>
+
+    <property name="src.dir"     value="src"/>
+    <property name="c_src.dir"   value="C"/>
+
+    <property name="build.dir"   value="build"/>
+    <property name="classes.dir" value="${build.dir}/classes"/>
+    <property name="c.dir"	 value="${build.dir}/c"/>
+    <property name="include.dir" value="${build.dir}/include"/>
+    <property name="objects.dir" value="${build.dir}/objects"/>
+    <property name="jar.dir"     value="${build.dir}/jar"/>
+    <property name="external" location="external" />
+
+
+    <!-- targets -->
+
+    <target name="clean">
+	<delete dir="${build.dir}"/>
+    </target>
+
+    <path id="external_jars">
+	<fileset dir="${external}">
+	    <include name="*.jar" />
+	</fileset>
+    </path>
+
+    <target name="compile">
+	<mkdir dir="${classes.dir}"/>
+	<javac srcdir="${src.dir}" destdir="${classes.dir}"
+	    debug="on" debuglevel="lines,vars,source">
+	    <classpath refid="external_jars" />
+	</javac>
+    </target>
+
+    <target name="gen_header" depends="compile">
+	<mkdir dir="${include.dir}"/>
+	<javah 
+	    classpath="${classes.dir}"
+	    class="ibis.ipl.impl.ib.IBCommunication"
+	    outputFile="${include.dir}/ibcommunication.h"/>
+    </target>
+
+    <target name="compile_c" depends="gen_header">
+	<mkdir dir="${objects.dir}"/>
+	<exec executable="gcc" failonerror="true"> 
+	    <arg value="-fPIC"/>
+	    <arg value="-I${env.JAVA_HOME}/include"/>
+	    <arg value="-I${env.JAVA_HOME}/include/linux"/>
+	    <arg value="-I${include.dir}"/>
+	    <arg value="-c"/>
+	    <arg value="-o"/>
+	    <arg value="${objects.dir}/ibcommunication.o"/>
+	    <arg value="${c_src.dir}/ibcommunication.c"/>
+	</exec>
+    </target>
+    
+    <target name="link_c" depends="compile_c">
+	<exec executable="gcc" failonerror="true">
+	    <arg value="-shared"/>
+	    <arg value="-o"/>
+	    <arg value="${classes.dir}/libibcommunication.so"/>
+	    <arg value="${objects.dir}/ibcommunication.o"/>
+	    <arg value="../../c/ibcomm/libibcomm.a"/>
+	    <arg value="../../c/lib/librdmacm.a"/>
+	    <arg value="-libverbs"/>
+	    <arg value="-lpthread"/>
+	</exec>
+    </target>
+
+
+    <target name="jar" depends="clean,link_c">
+	<mkdir dir="${jar.dir}"/>
+
+	<checksum totalproperty="ib.checksum">
+	    <fileset dir="${classes.dir}" includes="**/*.class"/>
+	</checksum>
+
+	<jar destfile="${jar.dir}/${ant.project.name}.jar" 
+	    basedir="${classes.dir}">
+
+	    <manifest>
+		<attribute name="Ibis-Starter-Class" value="ibis.ipl.impl.ib.IbIbisStarter"/>
+		<attribute name="Ibis-IPL-Version" value="2.3"/>
+		<attribute name="Ibis-NickName" value="ib"/>
+		<attribute name="Ibis-Implementation-Version" value="${ib.checksum}" />
+	    </manifest>
+	</jar>
+    </target>
+</project>

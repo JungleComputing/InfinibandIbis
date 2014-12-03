@@ -2,26 +2,27 @@ package ibis.ipl.impl.ib;
 
 class IbServerSocket {
 
-    RserverSocket socket = null;
+    int sockfd = -1;
+    String myAddress;
 
-    IbServerSocket(RserverSocket s) {
-	socket = s;
+    IbServerSocket() {
+	// TODO: create socket and initialize sockfd and myAddress.
     }
 
     IbSocket accept() throws java.io.IOException {
-	Rsocket s = socket.accept();
-	return new IbSocket(s);
+	int fd = IBCommunication.accept(sockfd);
+	return new IbSocket(fd);
     }
 
-    IbSocketAddress getLocalSocketAddress() {
-	return new IbSocketAddress(socket.getLocalSocketAddress());
+    String getLocalSocketAddress() {
+	return myAddress;
     }
 
     void close() throws java.io.IOException {
 	try {
-	    socket.close();
+	    IBCommunication.close(sockfd);
 	} finally {
-	    socket = null;
+	    sockfd = -1;
 	}
     }
 }

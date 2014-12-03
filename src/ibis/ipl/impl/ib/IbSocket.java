@@ -1,45 +1,83 @@
 package ibis.ipl.impl.ib;
 
+import ibis.ipl.ConnectionFailedException;
+import ibis.ipl.ReceivePortIdentifier;
+
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
 class IbSocket {
-
-    Rsocket socket = null;
+    int sockfd = -1;
     WritableByteChannel out;
     ReadableByteChannel in;
 
-    IbSocket(Rsocket s) throws IOException {
-	socket = s;
-	in = s.getInputChannel();
-	out = s.getOutputChannel();
+    public IbSocket() {
+	// nothing
     }
 
-    void setTcpNoDelay(boolean val) throws IOException {
-	socket.setTcpNoDelay(val);
+    public IbSocket(int fd) {
+	sockfd = fd;
     }
 
-    WritableByteChannel getOutputChannel() throws IOException {
+    synchronized WritableByteChannel getOutputChannel() throws IOException {
+	if (out == null) {
+	    out = new WritableByteChannel() {
+
+		@Override
+		public boolean isOpen() {
+		    return true;
+		}
+
+		@Override
+		public void close() throws IOException {
+		    // nothing
+		}
+
+		@Override
+		public int write(ByteBuffer src) throws IOException {
+		    return IBCommunication.send(sockfd, src);
+		}
+	    };
+	}
 	return out;
     }
 
-    ReadableByteChannel getInputChannel() throws IOException {
+    synchronized ReadableByteChannel getInputChannel() throws IOException {
+	if (in == null) {
+	    in = new ReadableByteChannel() {
+
+		@Override
+		public boolean isOpen() {
+		    return true;
+		}
+
+		@Override
+		public void close() throws IOException {
+		    // nothing
+		}
+
+		@Override
+		public int read(ByteBuffer dst) throws IOException {
+		    return IBCommunication.receive(sockfd, dst);
+		}
+	    };
+	}
 	return in;
+    }
+
+    public void connect(String address, int timeout, ReceivePortIdentifier id)
+	    throws ConnectionFailedException {
+	sockfd = IBCommunication.clientConnect(address, id);
     }
 
     void close() throws java.io.IOException {
 	try {
-	    socket.close();
+	    IBCommunication.close(sockfd);
 	} finally {
-	    socket = null;
 	    in = null;
 	    out = null;
 	}
-    }
-
-    @Override
-    public String toString() {
-	return socket.toString();
     }
 }

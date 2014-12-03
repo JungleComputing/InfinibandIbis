@@ -43,11 +43,11 @@ public final class IbIbis extends ibis.ipl.impl.Ibis implements Runnable,
 
     private IbServerSocket systemServer;
 
-    private IbSocketAddress myAddress;
+    private String myAddress;
 
     private boolean quiting = false;
 
-    private HashMap<ibis.ipl.IbisIdentifier, IbSocketAddress> addresses = new HashMap<ibis.ipl.IbisIdentifier, IbSocketAddress>();
+    private HashMap<ibis.ipl.IbisIdentifier, String> addresses = new HashMap<ibis.ipl.IbisIdentifier, String>();
 
     public IbIbis(RegistryEventHandler registryEventHandler,
 	    IbisCapabilities capabilities, Credentials credentials,
@@ -70,14 +70,14 @@ public final class IbIbis extends ibis.ipl.impl.Ibis implements Runnable,
 
 	factory = new IbSocketFactory(properties);
 
-	systemServer = factory.createServerSocket(0, 50, true, null);
+	systemServer = factory.createServerSocket();
 	myAddress = systemServer.getLocalSocketAddress();
 
 	if (logger.isInfoEnabled()) {
 	    logger.info("--> IbIbis: address = " + myAddress);
 	}
 
-	return myAddress.toBytes();
+	return myAddress.getBytes("UTF_8");
     }
 
     /*
@@ -97,12 +97,12 @@ public final class IbIbis extends ibis.ipl.impl.Ibis implements Runnable,
 
 	IbisIdentifier id = (IbisIdentifier) rip.ibisIdentifier();
 	String name = rip.name();
-	IbSocketAddress idAddr;
+	String idAddr;
 
 	synchronized (addresses) {
 	    idAddr = addresses.get(id);
 	    if (idAddr == null) {
-		idAddr = new IbSocketAddress(id.getImplementationData());
+		idAddr = new String(id.getImplementationData(), "UTF-8");
 		addresses.put(id, idAddr);
 	    }
 	}
@@ -127,8 +127,7 @@ public final class IbIbis extends ibis.ipl.impl.Ibis implements Runnable,
 
 	    try {
 		s = factory.createClientSocket(idAddr, timeout, fillTimeout,
-			sp.managementProperties());
-		s.setTcpNoDelay(true);
+			rip);
 		out = new DataOutputStream(new ByteBufferOutputStream(
 			s.getOutputChannel()));
 		out.writeByte(ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN ? 0
@@ -309,7 +308,6 @@ public final class IbIbis extends ibis.ipl.impl.Ibis implements Runnable,
 
 	    try {
 		s = systemServer.accept();
-		s.setTcpNoDelay(true);
 	    } catch (Throwable e) {
 		/* if the accept itself fails, we have a fatal problem. */
 		logger.error("IbIbis:run: got fatal exception in accept! ", e);
