@@ -53,6 +53,8 @@ public class IBCommunication {
 	if (result.equals("")) {
 	    throw new IbisConfigurationException("cannot determine ip address");
 	}
+        String port = result.substring(port.lastIndexOf(":")+1);
+        // TODO: get IP of Infiniband and use that!
 	return result;
     }
 
