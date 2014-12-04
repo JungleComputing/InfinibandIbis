@@ -254,6 +254,7 @@ int server_listen(void)
     int val, ret;
     int p = 7139;
     char port[32];
+    int lrs = 0;
 
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_INET;
@@ -275,7 +276,7 @@ int server_listen(void)
 	    return ret;
 	}
 
-	int lrs = rs_socket(ai->ai_family, SOCK_STREAM, 0);
+	lrs = rs_socket(ai->ai_family, SOCK_STREAM, 0);
 	if (lrs < 0) {
 	    perror("rsocket");
 	    ret = lrs;

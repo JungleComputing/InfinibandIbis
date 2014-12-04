@@ -1,26 +1,19 @@
 CC		= gcc
-CFLAGS		= -fPIC
+INCLUDES	= -I../build/include -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux
+CFLAGS		= -O -fPIC $(INCLUDES)
 LFLAGS		= -shared -o $(SONAME)
-AR		= ar
-ARFLAGS		= cru
-RANLIB		= ranlib
 LIBS		= lib/librdmacm.a
-SRC		= ibcomm.c common.c
+SRC		= ibcomm.c common.c ibcommunication.c
 OBJ		= $(SRC:.c=.o)
-SONAME		= libibcomm.so
-LIBNAME		= libibcomm.a
+SONAME		= ../build/classes/libibcommunication.so
 
 DEPFILE		= .depends
-DEPFLAGS	= -Y -f$(DEPFILE)
+DEPFLAGS	= -Y -f$(DEPFILE) $(INCLUDES)
 
-all:	$(SONAME) $(LIBNAME)
+all:	$(SONAME)
 
 $(SONAME): $(DEPFILE) $(OBJ)
 	$(CC) $(LFLAGS) -o $@ $(OBJ) $(LIBS) -libverbs -lpthread
-
-$(LIBNAME): $(DEPFILE) $(OBJ)
-	$(AR) $(ARFLAGS) $(LIBNAME) $(OBJ)
-	$(RANLIB) $(LIBNAME)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
@@ -38,3 +31,4 @@ depend:
 clean: 
 	rm -f $(SONAME) $(LIBNAME) *.o .depends .depends.bak
 
+# DO NOT DELETE
