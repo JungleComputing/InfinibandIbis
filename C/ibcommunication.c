@@ -39,6 +39,10 @@ JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_clientConnect2(JNIE
     return result;
 }
 
+JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_serverCreate2(JNIEnv *env, jclass c) {
+    return server_listen();
+}
+
 JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_accept2(JNIEnv *env, jclass c, jint fd) {
     jint result = myAccept(fd);
     return result;
