@@ -19,9 +19,9 @@
 #include <rdma/rsocket.h>
 #include "common.h"
 
-#define BLOCKING 0
+#define BLOCKING 1
 #define TIMEOUT 0
-#define DEBUG 0
+#define DEBUG 1
 #define MAXSIZE 0
 
 #if BLOCKING
@@ -261,7 +261,7 @@ int server_listen(void)
     hints.ai_flags = AI_PASSIVE;
 
 #if DEBUG
-    puts("server_listen");
+    fprintf(stdout, "server_listen\n");
     fflush(stdout);
 #endif
     for (;;p++) {
@@ -326,7 +326,7 @@ free:
     return lrs;
 }
 
-static int myAccept(int l_sockfd)
+int myAccept(int l_sockfd)
 {
     int sockfd;
 
@@ -407,6 +407,9 @@ int getSockIP(char *buffer, int len_buf, int sockfd) {
 	port = ntohs(s->sin6_port);
 	inet_ntop(AF_INET6, &s->sin6_addr, buffer, len_buf);
     }
+    // Unfortunately, this gives 0.0.0.0.
+    // So, instead:
+    gethostname(buffer, len_buf);
     strcat(buffer, ":");
     sprintf(buf, "%d", port);
     strcat(buffer, buf);

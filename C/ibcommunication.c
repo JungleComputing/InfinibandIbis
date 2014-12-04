@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include <sys/time.h>
+#include "common.h"
 #include "ibcommunication.h"
 
 #define TIMING 0

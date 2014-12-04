@@ -77,7 +77,7 @@ public final class IbIbis extends ibis.ipl.impl.Ibis implements Runnable,
 	    logger.info("--> IbIbis: address = " + myAddress);
 	}
 
-	return myAddress.getBytes("UTF_8");
+	return myAddress.getBytes("UTF-8");
     }
 
     /*
