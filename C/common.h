@@ -72,25 +72,7 @@ extern int use_rs;
 	use_rs ? rgetsockopt(s,l,n,v,ol) : getsockopt(s,l,n,v,ol)
 #define rs_getpeername(s,a,l) \
 	use_rs ? rgetpeername(s,a,l) : getpeername(s,a,l)
+#define rs_getsockname(s,a,l) \
+	use_rs ? rgetsockname(s,a,l) : getsockname(s,a,l)
 
-union socket_addr {
-	struct sockaddr		sa;
-	struct sockaddr_in	sin;
-	struct sockaddr_in6	sin6;
-};
-
-enum rs_optimization {
-	opt_mixed,
-	opt_latency,
-	opt_bandwidth
-};
-
-int get_rdma_addr(char *src, char *dst, char *port,
-		  struct rdma_addrinfo *hints, struct rdma_addrinfo **rai);
-
-void size_str(char *str, size_t ssize, long long size);
-void cnt_str(char *str, size_t ssize, long long cnt);
-int size_to_count(int size);
-void format_buf(void *buf, int size);
-int verify_buf(void *buf, int size);
 int do_poll(struct pollfd *fds, int timeout);

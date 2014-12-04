@@ -20,7 +20,9 @@ public class IBCommunication {
 	}
     }
 
-    public static native int clientConnect2(String address);
+    public static native int clientConnect2(String address, String port);
+
+    public static native int serverCreate2();
 
     public static native int accept2(int sockfd);
 
@@ -32,7 +34,9 @@ public class IBCommunication {
 
     public static native String getPeerIP2(int sockfd);
 
-    public static native void close2(int sockfd);
+    public static native String getSockIP2(int sockfd);
+
+    public static native int close2(int sockfd);
 
     public static String getPeerIP(int sockfd)
 	    throws IbisConfigurationException {
@@ -43,9 +47,21 @@ public class IBCommunication {
 	return result;
     }
 
+    public static String getSockIP(int sockfd)
+	    throws IbisConfigurationException {
+	String result = getSockIP2(sockfd);
+	if (result.equals("")) {
+	    throw new IbisConfigurationException("cannot determine ip address");
+	}
+	return result;
+    }
+
     public static int clientConnect(String address, ReceivePortIdentifier id)
 	    throws ConnectionFailedException {
-	int sockfd = clientConnect2(address);
+	int i = address.lastIndexOf(":");
+	String a = address.substring(0, i);
+	String p = address.substring(i + 1);
+	int sockfd = clientConnect2(a, p);
 	if (sockfd < 0) {
 	    throw new ConnectionFailedException("cannot connect to " + address,
 		    id);
@@ -55,6 +71,14 @@ public class IBCommunication {
 
     public synchronized static int accept(int fd) throws IbisIOException {
 	int sockfd = accept2(fd);
+	if (sockfd < 0) {
+	    throw new IbisIOException("cannot set up server");
+	}
+	return sockfd;
+    }
+
+    public synchronized static int serverCreate() throws IbisIOException {
+	int sockfd = serverCreate2();
 	if (sockfd < 0) {
 	    throw new IbisIOException("cannot set up server");
 	}

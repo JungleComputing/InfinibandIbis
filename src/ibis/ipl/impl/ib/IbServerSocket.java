@@ -1,12 +1,15 @@
 package ibis.ipl.impl.ib;
 
+import ibis.io.IbisIOException;
+
 class IbServerSocket {
 
     int sockfd = -1;
     String myAddress;
 
-    IbServerSocket() {
-	// TODO: create socket and initialize sockfd and myAddress.
+    IbServerSocket() throws IbisIOException {
+	sockfd = IBCommunication.serverCreate();
+	myAddress = IBCommunication.getSockIP(sockfd);
     }
 
     IbSocket accept() throws java.io.IOException {

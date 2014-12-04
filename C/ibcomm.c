@@ -24,9 +24,6 @@
 #define DEBUG 0
 #define MAXSIZE 0
 
-static int isListening = 0;
-static int l_sockfd = -1;
-
 #if BLOCKING
 // the message size has to equal the buffer size, otherwise it would block
 // No, not if flags == 0. --Ceriel
@@ -36,7 +33,6 @@ static int flags = MSG_DONTWAIT;
 #endif
 
 static int poll_timeout = 0;
-static char *port = "0";
 static int keepalive = 0;
 static struct addrinfo ai_hints;
 static int countm1Sent = 0;
@@ -58,7 +54,7 @@ static void printTime(int secBefore) {
 
 
 static void printIP(char * prefix, int sockfd) {
-    char ipstr[INET6_ADDRSTRLEN];
+    char ipstr[INET6_ADDRSTRLEN + 33];
     ipstr[0] = '\0';
     getPeerIP(ipstr, INET6_ADDRSTRLEN, sockfd);
     printf("%s%s\n", prefix, ipstr);
@@ -172,31 +168,14 @@ static int recv_xfer(int sockfd, void *buf, int size)
 }
 
 
-static int sync_test(int sockfd,  char *address)
-{
-    int ret;
-    int buf[16];
-
-    ret = address ? send_xfer(sockfd, (void *) buf, 16) : 
-	recv_xfer(sockfd, (void *) buf, 16);
-    if (ret)
-	return ret;
-
-    return address ? recv_xfer(sockfd, (void *) buf, 16) : 
-	send_xfer(sockfd, (void *) buf, 16);
-}
-
-
 int mysend(int sockfd, void *buf, size_t size) {
     //printIP("sending to: ", sockfd);
-    //sync_test(sockfd, "a");
     int i = send_xfer(sockfd, buf, size);
     return i;
 }
 
 int myreceive(int sockfd, void *buf, size_t size) {
     //printIP("receiving from: ", sockfd);
-    //sync_test(sockfd, NULL);
     int i = recv_xfer(sockfd, buf, size);
 
     return i;
@@ -268,53 +247,70 @@ static void set_options(int rs)
 	set_keepalive(rs);
 }
 
-static int server_listen(void)
+int server_listen(void)
 {
-    struct addrinfo *ai;
+    struct addrinfo *ai = NULL;
     struct addrinfo hints;
     int val, ret;
+    int p = 7139;
+    char port[32];
 
     memset(&hints, 0, sizeof(struct addrinfo));
-    hints.ai_family = AF_UNSPEC;
+    hints.ai_family = AF_INET;
     hints.ai_flags = AI_PASSIVE;
 
 #if DEBUG
     puts("server_listen");
     fflush(stdout);
 #endif
-    ret = getaddrinfo(NULL, port, &hints, &ai);
+    for (;;p++) {
+	sprintf(port, "%d", p);
+	if (ai != NULL) {
+	    freeaddrinfo(ai);
+	}
+	ret = getaddrinfo(NULL, port, &hints, &ai);
 
-    if (ret) {
-	perror("getaddrinfo");
-	return ret;
+	if (ret) {
+	    perror("getaddrinfo");
+	    return ret;
+	}
+
+	int lrs = rs_socket(ai->ai_family, SOCK_STREAM, 0);
+	if (lrs < 0) {
+	    perror("rsocket");
+	    ret = lrs;
+	    break;
+	}
+
+	val = 1;
+	ret = rs_setsockopt(lrs, SOL_SOCKET, SO_REUSEADDR, &val, sizeof val);
+	if (ret) {
+	    perror("rsetsockopt SO_REUSEADDR");
+	    break;
+	}
+
+	ret = rs_bind(lrs, ai->ai_addr, ai->ai_addrlen);
+	if (ret) {
+	    if (errno == EADDRINUSE) {
+		rs_close(lrs);
+		continue;
+	    }
+	    perror("rbind");
+	    break;
+	}
+
+	ret = rs_listen(lrs, SOMAXCONN);
+	if (ret) {
+	    if (errno == EADDRINUSE) {
+		rs_close(lrs);
+		continue;
+	    }
+	    perror("rlisten");
+	}
+	break;
     }
 
-    int lrs = rs_socket(ai->ai_family, SOCK_STREAM, 0);
-    if (lrs < 0) {
-	perror("rsocket");
-	ret = lrs;
-	goto free;
-    }
-
-    val = 1;
-    ret = rs_setsockopt(lrs, SOL_SOCKET, SO_REUSEADDR, &val, sizeof val);
-    if (ret) {
-	perror("rsetsockopt SO_REUSEADDR");
-	goto close;
-    }
-
-    ret = rs_bind(lrs, ai->ai_addr, ai->ai_addrlen);
-    if (ret) {
-	perror("rbind");
-	goto close;
-    }
-
-    ret = rs_listen(lrs, SOMAXCONN);
-    if (ret)
-	perror("rlisten");
-
-close:
-    if (ret)
+    if (ret && lrs > 0)
 	rs_close(lrs);
 free:
     freeaddrinfo(ai);
@@ -322,13 +318,11 @@ free:
     if (ret) {
 	return ret;
     }
-    else {
 #if DEBUG
-	puts("done server_listen");
-	fflush(stdout);
+    puts("done server_listen");
+    fflush(stdout);
 #endif
-	return lrs;
-    }
+    return lrs;
 }
 
 static int myAccept(int l_sockfd)
@@ -357,52 +351,12 @@ static int myAccept(int l_sockfd)
 }
 
 
-// Multiple threads are not allowed to enter this. 
-int myserverConnect() {
-#if DEBUG
-    puts("myserverConnect");
-    fflush(stdout);
-#endif
-
-    int sockfd;
-    ai_hints.ai_socktype = SOCK_STREAM;
-
-    if (!isListening) {
-	if ((l_sockfd = server_listen()) < 0) {
-	    return l_sockfd;
-	}
-	isListening = 1;
-	// move this to where it came from?
-	set_options(l_sockfd);
-    }
-
-    if ((sockfd = myAccept(l_sockfd)) < 0) {
-	return sockfd;
-    }
-
-#if DEBUG
-    printf("will receive on sockfd %d from ", sockfd);
-    printIP("", sockfd);
-    fflush(stdout);
-#endif
-
-    int ret;
-    if ((ret = sync_test(sockfd, NULL)) < 0) {
-	return ret;
-    }
-
-#if DEBUG
-    puts("done myserverConnect");
-    fflush(stdout);
-#endif
-    return sockfd;
-}
-
 
 int getPeerIP(char *buffer, int len_buf, int sockfd) {
     socklen_t len;
     struct sockaddr_storage addr;
     int port;
+    char buf[32];
 
     len = sizeof addr;
     int ret;
@@ -421,12 +375,46 @@ int getPeerIP(char *buffer, int len_buf, int sockfd) {
 	port = ntohs(s->sin6_port);
 	inet_ntop(AF_INET6, &s->sin6_addr, buffer, len_buf);
     }
+    strcat(buffer, ":");
+    sprintf(buf, "%d", port);
+    strcat(buffer, buf);
 
     return 0;
 }
 
 
-int myclientConnect(char *address)
+int getSockIP(char *buffer, int len_buf, int sockfd) {
+    socklen_t len;
+    struct sockaddr_storage addr;
+    int port;
+    char buf[32];
+
+    len = sizeof addr;
+    int ret;
+    if ((ret = rs_getsockname(sockfd, (struct sockaddr*)&addr, &len)) < 0) {
+	perror("getsockname");
+	return ret;
+    }
+
+    // deal with both IPv4 and IPv6:
+    if (addr.ss_family == AF_INET) {
+	struct sockaddr_in *s = (struct sockaddr_in *)&addr;
+	port = ntohs(s->sin_port);
+	inet_ntop(AF_INET, &s->sin_addr, buffer, len_buf);
+    } else { // AF_INET6
+	struct sockaddr_in6 *s = (struct sockaddr_in6 *)&addr;
+	port = ntohs(s->sin6_port);
+	inet_ntop(AF_INET6, &s->sin6_addr, buffer, len_buf);
+    }
+    strcat(buffer, ":");
+    sprintf(buf, "%d", port);
+    strcat(buffer, buf);
+
+    return 0;
+}
+
+
+int myclientConnect(char *address, char *port)
 {
 #if DEBUG
     puts("myclientConnect");
@@ -484,9 +472,6 @@ free:
     freeaddrinfo(ai);
 
     if (ret == 0) {
-	if ((ret = sync_test(sockfd, address)) < 0) {
-	    return ret;
-	}
 #if DEBUG
 	puts("done myclientConnect");
 	fflush(stdout);

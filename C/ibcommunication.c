@@ -24,11 +24,18 @@ void printTime(struct timeval start, struct timeval end, const char *s) {
     printf("%s: %f s\n", s, endD - startD);
 }
 
+JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_close2(JNIEnv *env, jclass c,
+	jint fd) {
+    return rs_close(fd);
+}
+
 JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_clientConnect2(JNIEnv *env, jclass c, 
-	jstring s) {
-    const char *inCStr = (*env)->GetStringUTFChars(env, s, NULL);
-    jint result = myclientConnect(inCStr);
-    (*env)->ReleaseStringUTFChars(env, s, inCStr);
+	jstring address, jstring port) {
+    const char *astr = (*env)->GetStringUTFChars(env, address, NULL);
+    const char *pstr = (*env)->GetStringUTFChars(env, port, NULL);
+    jint result = myclientConnect(astr, pstr);
+    (*env)->ReleaseStringUTFChars(env, address, astr);
+    (*env)->ReleaseStringUTFChars(env, port, pstr);
     return result;
 }
 
@@ -85,7 +92,7 @@ JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_receive2(JNIEnv *en
 }
 
 
-#define BUF_SZ 256
+#define BUF_SZ 512
 
 JNIEXPORT jstring JNICALL Java_ibis_ipl_impl_ib_IBCommunication_getPeerIP2(JNIEnv * env, jclass c, jint sockfd) {
     char buf[BUF_SZ];
@@ -93,6 +100,21 @@ JNIEXPORT jstring JNICALL Java_ibis_ipl_impl_ib_IBCommunication_getPeerIP2(JNIEn
 
     jstring result;
     if (getPeerIP(buf, BUF_SZ, sockfd) < 0) {
+	result = (*env)->NewStringUTF(env, "");
+    }
+    else {
+	result = (*env)->NewStringUTF(env, buf);
+    }
+
+    return result;
+}
+
+JNIEXPORT jstring JNICALL Java_ibis_ipl_impl_ib_IBCommunication_getSockIP2(JNIEnv * env, jclass c, jint sockfd) {
+    char buf[BUF_SZ];
+    buf[0] = '\0';
+
+    jstring result;
+    if (getSockIP(buf, BUF_SZ, sockfd) < 0) {
 	result = (*env)->NewStringUTF(env, "");
     }
     else {
