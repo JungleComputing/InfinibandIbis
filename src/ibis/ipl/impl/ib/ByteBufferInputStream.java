@@ -109,6 +109,7 @@ public final class ByteBufferInputStream extends DataInputStream {
         }
         if (buffered_bytes == 0) {
             buffer.clear();
+            buffer.limit(buffer.position());
         } else if (buffer.position() > BUF_SIZE - len) {
             // not enough space for "len" more bytes
             byte[] temp = new byte[buffered_bytes];
