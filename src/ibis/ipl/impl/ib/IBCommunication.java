@@ -56,6 +56,7 @@ public class IBCommunication {
         if (result.equals("")) {
             throw new IbisConfigurationException("cannot determine ip address");
         }
+        String addr = result.substring(0, result.lastIndexOf(":"));
         String port = result.substring(result.lastIndexOf(":") + 1);
         try {
             InetAddress[] addresses = IPUtils.getLocalHostAddresses();
@@ -63,12 +64,19 @@ public class IBCommunication {
             for (int i = 0; i < ifs.length; i++) {
                 ifs[i] = NetworkInterface.getByInetAddress(addresses[i]);
                 if (ifs[i] != null) {
-                    System.out.println("Address = " + addresses[i]);
-                    System.out
-                            .println("Interface getName: " + ifs[i].getName());
-                    System.out.println("Interface getDisplayname: "
-                            + ifs[i].getDisplayName());
-                    System.out.println("Interface = " + ifs[i]);
+                    /*
+                     * System.out.println("Address = " + addresses[i]);
+                     * System.out .println("Interface getName: " +
+                     * ifs[i].getName());
+                     * System.out.println("Interface getDisplayname: " +
+                     * ifs[i].getDisplayName());
+                     * System.out.println("Interface = " + ifs[i]);
+                     */
+                    if (ifs[i].getName().startsWith("ib")) {
+                        String s = addresses[i].toString();
+                        addr = s.substring(s.lastIndexOf("/") + 1);
+                        break;
+                    }
                 }
             }
         } catch (Throwable e) {
@@ -76,7 +84,7 @@ public class IBCommunication {
                     e);
         }
         // TODO: get IP of Infiniband and use that!
-        return result;
+        return addr + ":" + port;
     }
 
     public static int clientConnect(String address, ReceivePortIdentifier id)
