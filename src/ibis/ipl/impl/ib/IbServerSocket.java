@@ -21,7 +21,10 @@ class IbServerSocket {
 	return myAddress;
     }
 
-    void close() throws java.io.IOException {
+    synchronized void close() throws java.io.IOException {
+        if (sockfd < 0) {
+            return;
+        }
 	try {
 	    IBCommunication.close(sockfd);
 	} finally {

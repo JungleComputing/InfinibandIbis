@@ -21,7 +21,7 @@
 
 #define BLOCKING 1
 #define TIMEOUT 0
-#define DEBUG 1
+#define DEBUG 0
 #define MAXSIZE 0
 
 #if BLOCKING
