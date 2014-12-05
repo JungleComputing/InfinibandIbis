@@ -137,6 +137,9 @@ public class IBCommunication {
         System.out.println("Receiving bytebuffer: position = " + bb.position()
                 + ", size = " + size + ", capacity = " + bb.capacity()
                 + ", direct = " + bb.isDirect());
+        if (!bb.isDirect()) {
+            (new Throwable()).printStackTrace();
+        }
         int r = receive2(sockfd, bb, bb.position(), size);
         System.out.println("Done receiving, result = " + r);
         if (r < 0) {
