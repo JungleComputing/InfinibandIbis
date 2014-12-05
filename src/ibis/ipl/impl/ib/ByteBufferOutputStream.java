@@ -194,22 +194,13 @@ public final class ByteBufferOutputStream extends DataOutputStream {
                     + "])");
         }
 
-        int index = buffer.position();
-
-        if (len > (BUF_SIZE - index)) {
-
-            if (index > 0) {
-                flush(len);
-            }
-            if (len >= BUF_SIZE) {
-                bytes += len;
-                out.write(ByteBuffer.wrap(ref, off, len));
-            } else {
-                buffer.put(ref, off, len);
-            }
-        } else {
-            buffer.put(ref, off, len);
-        }
+        do {
+            flush(1);
+            int size = Math.min(buffer.remaining(), len);
+            buffer.put(ref, off, size);
+            off += size;
+            len -= size;
+        } while (len != 0);
     }
 
     @Override
