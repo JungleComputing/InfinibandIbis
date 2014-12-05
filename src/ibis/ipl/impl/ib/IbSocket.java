@@ -22,6 +22,9 @@ class IbSocket {
     }
 
     synchronized WritableByteChannel getOutputChannel() throws IOException {
+        if (sockfd < 0) {
+            return null;
+        }
 	if (out == null) {
 	    out = new WritableByteChannel() {
 
@@ -45,6 +48,9 @@ class IbSocket {
     }
 
     synchronized ReadableByteChannel getInputChannel() throws IOException {
+        if (sockfd < 0) {
+            return null;
+        }
 	if (in == null) {
 	    in = new ReadableByteChannel() {
 
@@ -72,12 +78,16 @@ class IbSocket {
 	sockfd = IBCommunication.clientConnect(address, id);
     }
 
-    void close() throws java.io.IOException {
+    synchronized void close() throws java.io.IOException {
+        if (sockfd < 0) {
+            return;
+        }
 	try {
 	    IBCommunication.close(sockfd);
 	} finally {
 	    in = null;
 	    out = null;
+            sockfd = -1;
 	}
     }
 }

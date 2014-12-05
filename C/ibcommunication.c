@@ -87,11 +87,13 @@ JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_receive2(JNIEnv *en
 
     gettimeofday(&start, NULL);
 #endif
+    fprintf(stdout, "receive %p %d %p %d\n", fa, offset, fa + offset, size);
+    fflush(stdout);
     retval = myreceive(sockfd, fa + offset, size);
 #if TIMING
     gettimeofday(&end, NULL);
     printTime(start, end, "receive");
-    printBW(start, end, "receive", size);
+    printBW(start, end, "receive", retval);
 #endif
     return retval;
 }
