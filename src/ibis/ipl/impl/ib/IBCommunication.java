@@ -135,9 +135,10 @@ public class IBCommunication {
         }
         int size = bb.remaining();
         System.out.println("Receiving bytebuffer: position = " + bb.position()
-                + ", size = " + size + ", capacity = " + bb.capacity());
+                + ", size = " + size + ", capacity = " + bb.capacity()
+                + ", direct = " + bb.isDirect());
         int r = receive2(sockfd, bb, bb.position(), size);
-        System.out.println("Done receiving");
+        System.out.println("Done receiving, result = " + r);
         if (r < 0) {
             throw new IbisIOException("Something wrong in receive2");
         }
