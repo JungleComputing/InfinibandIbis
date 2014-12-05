@@ -60,6 +60,7 @@ public final class ByteBufferInputStream extends DataInputStream {
         BUF_SIZE = bufSize;
         buffer = ByteBuffer.allocateDirect(BUF_SIZE);
         buffer.order(order);
+        buffer.limit(0);
     }
 
     /**
@@ -500,7 +501,8 @@ public final class ByteBufferInputStream extends DataInputStream {
     public void readByteBuffer(ByteBuffer value) throws IOException,
             ReadOnlyBufferException {
 
-        int len = value.limit() - value.position();
+        int position = value.position();
+        int len = value.limit() - position;
 
         if (buffer.remaining() > 0) {
             int l = min(len, buffer.remaining());
@@ -529,6 +531,7 @@ public final class ByteBufferInputStream extends DataInputStream {
             int off = value.arrayOffset() + value.position();
             readArray(b, off, len);
         }
+        value.position(position);
     }
 
     public void clear() {

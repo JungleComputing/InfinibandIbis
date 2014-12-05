@@ -125,6 +125,7 @@ public class IBCommunication {
         if (s != 0) {
             throw new IbisIOException("Something wrong in send2");
         }
+        bb.position(bb.limit());
         return size;
     }
 
@@ -133,11 +134,12 @@ public class IBCommunication {
             throw new IbisIOException("invalid socket file descriptor");
         }
         int size = bb.remaining();
-        int r = receive2(sockfd, bb, bb.position(), bb.remaining());
-        if (r != 0) {
+        int r = receive2(sockfd, bb, bb.position(), size);
+        if (r < 0) {
             throw new IbisIOException("Something wrong in receive2");
         }
-        return size;
+        bb.position(bb.position() + r);
+        return r;
     }
 
     public static void close(int sockfd) {

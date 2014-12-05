@@ -118,7 +118,7 @@ static int recv_xfer(int sockfd, void *buf, int size)
 {
     int offset, ret;
 
-    for (offset = 0; offset < size; ) {
+    for (offset = 0; offset == 0; ) {
 	int sz = size - offset;
 #if MAXSIZE > 0
 	if (sz > MAXSIZE) sz = MAXSIZE;
@@ -164,7 +164,7 @@ static int recv_xfer(int sockfd, void *buf, int size)
 	}
     }
 
-    return 0;
+    return offset;
 }
 
 

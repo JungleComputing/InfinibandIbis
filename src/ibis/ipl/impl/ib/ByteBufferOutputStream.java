@@ -374,13 +374,16 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 
     @Override
     public void writeByteBuffer(ByteBuffer value) throws IOException {
-        int len = value.limit() - value.position();
+        int position = value.position();
+        int len = value.limit() - position;
         if (value.isDirect()) {
             flush();
-            out.write(value);
+            while (value.remaining() > 0) {
+                out.write(value);
+            }
+            value.position(position);
             return;
         }
-        writeArray(value.array(), value.arrayOffset() + value.position(),
-                value.arrayOffset() + value.limit());
+        writeArray(value.array(), value.arrayOffset() + value.position(), len);
     }
 }
