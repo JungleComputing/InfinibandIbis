@@ -134,7 +134,10 @@ public class IBCommunication {
             throw new IbisIOException("invalid socket file descriptor");
         }
         int size = bb.remaining();
+        System.out.println("Receiving bytebuffer: position = " + bb.position()
+                + ", size = " + size + ", capacity = " + bb.capacity());
         int r = receive2(sockfd, bb, bb.position(), size);
+        System.out.println("Done receiving");
         if (r < 0) {
             throw new IbisIOException("Something wrong in receive2");
         }
