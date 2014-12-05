@@ -166,29 +166,13 @@ public final class ByteBufferInputStream extends DataInputStream {
         if (DEBUG && logger.isDebugEnabled()) {
             logger.debug("readArray(byte[" + off + " ... " + (off + len) + "])");
         }
-        int buffered_bytes = buffer.remaining();
-        if (buffered_bytes >= len) {
-            // data is already in the buffer.
-            buffer.get(a, off, len);
-        } else {
-            if (buffered_bytes != 0) {
-                buffer.get(a, off, buffered_bytes);
-                off += buffered_bytes;
-                len -= buffered_bytes;
-            }
-            ByteBuffer b = ByteBuffer.wrap(a, off, len);
-
-            int rd = buffered_bytes;
-            do {
-                int n = in.read(b);
-                if (n < 0) {
-                    throw new java.io.EOFException("EOF encountered");
-                }
-                rd += n;
-                bytes += n;
-            } while (rd < len);
-
-            buffered_bytes = 0;
+        while (len > 0) {
+            fillBuffer(min(BUF_SIZE, len));
+            int buffered_bytes = buffer.remaining();
+            int l = min(len, buffered_bytes);
+            buffer.get(a, off, l);
+            off += l;
+            len -= l;
         }
     }
 
