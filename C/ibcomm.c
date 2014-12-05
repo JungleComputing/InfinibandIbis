@@ -105,8 +105,6 @@ static int send_xfer(int sockfd, void *buf, int size)
 	    }
 	}
 	else { // ret == 0
-	    printf("SHIT!: send returns 0 and no error is set...\n"); 
-	    fflush(stdout);
 	    return -1;
 	}
     }
@@ -117,6 +115,10 @@ static int send_xfer(int sockfd, void *buf, int size)
 static int recv_xfer(int sockfd, void *buf, int size)
 {
     int offset, ret;
+
+    if (size == 0) {
+	return 0;
+    }
 
     for (offset = 0; offset == 0; ) {
 	int sz = size - offset;
@@ -158,9 +160,7 @@ static int recv_xfer(int sockfd, void *buf, int size)
 	    }
 	}
 	else { // ret == 0
-	    printf("SHIT!: there are no longer messages available on the other side, but I still need %d bytes\n", size - offset); 
-	    fflush(stdout);
-	    return -1;
+	    return 0;
 	}
     }
 
@@ -176,9 +176,7 @@ int mysend(int sockfd, void *buf, size_t size) {
 
 int myreceive(int sockfd, void *buf, size_t size) {
     //printIP("receiving from: ", sockfd);
-    int i = recv_xfer(sockfd, buf, size);
-
-    return i;
+    return recv_xfer(sockfd, buf, size);
 }
 
 

@@ -81,9 +81,6 @@ JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_receive2(JNIEnv *en
     gettimeofday(&start, NULL);
 #endif
     void *fa = (*env)->GetDirectBufferAddress(env, bb);
-    if (fa == NULL) {
-	fprintf(stderr, "Oeps: GetDirectBufferAddress gives null!, bb = %p\n", bb);
-    }
 
 #if TIMING
     gettimeofday(&end, NULL);
@@ -91,8 +88,6 @@ JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_receive2(JNIEnv *en
 
     gettimeofday(&start, NULL);
 #endif
-    fprintf(stdout, "receive %p %d %p %d\n", fa, offset, fa + offset, size);
-    fflush(stdout);
     retval = myreceive(sockfd, fa + offset, size);
 #if TIMING
     gettimeofday(&end, NULL);

@@ -124,8 +124,6 @@ public final class ByteBufferInputStream extends DataInputStream {
 
         while (buffered_bytes < len) {
             buffer.limit(BUF_SIZE);
-            logger.debug("Read: position = " + buffer.position() + ", limit = "
-                    + buffer.limit());
             int n = in.read(buffer);
             if (n < 0) {
                 throw new java.io.EOFException("EOF encountered");
