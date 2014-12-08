@@ -23,42 +23,46 @@ public class IBCommunication {
         }
     }
 
-    public static native int clientConnect2(String address, String port);
+    public static native int clientConnect2(String address, String port) throws IbisIOException;
 
-    public static native int serverCreate2();
+    public static native int serverCreate2() throws IbisIOException;
 
-    public static native int accept2(int sockfd);
+    public static native int accept2(int sockfd) throws IbisIOException;
 
     public static native int send2(int sockfd, ByteBuffer buffer, int offset,
-            int size);
+            int size) throws IbisIOException;
 
     public static native int receive2(int sockfd, ByteBuffer buffer,
-            int offset, int size);
+            int offset, int size, boolean full) throws IbisIOException;
 
-    public static native String getPeerIP2(int sockfd);
+    public static native String getPeerIP2(int sockfd) throws IbisIOException;
 
-    public static native String getSockIP2(int sockfd);
+    public static native String getSockIP2(int sockfd) throws IbisIOException;
 
-    public static native int close2(int sockfd);
+    public static native int close2(int sockfd) throws IbisIOException;
 
     public static String getPeerIP(int sockfd)
             throws IbisConfigurationException {
-        String result = getPeerIP2(sockfd);
-        if (result.equals("")) {
-            throw new IbisConfigurationException("cannot determine ip address");
+        try {
+            String result = getPeerIP2(sockfd);
+            if (result.equals("")) {
+                throw new IbisConfigurationException("cannot determine ip address");
+            }
+            return result;
+        } catch(IbisIOException e) {
+            throw new IbisConfigurationException("cannot determine ip address", e);
         }
-        return result;
     }
 
     public static String getSockIP(int sockfd)
             throws IbisConfigurationException {
-        String result = getSockIP2(sockfd);
-        if (result.equals("")) {
-            throw new IbisConfigurationException("cannot determine ip address");
-        }
-        String addr = result.substring(0, result.lastIndexOf(":"));
-        String port = result.substring(result.lastIndexOf(":") + 1);
         try {
+            String result = getSockIP2(sockfd);
+            if (result.equals("")) {
+                throw new IbisConfigurationException("cannot determine ip address");
+            }
+            String addr = result.substring(0, result.lastIndexOf(":"));
+            String port = result.substring(result.lastIndexOf(":") + 1);
             InetAddress[] addresses = IPUtils.getLocalHostAddresses();
             NetworkInterface[] ifs = new NetworkInterface[addresses.length];
             for (int i = 0; i < ifs.length; i++) {
@@ -79,12 +83,11 @@ public class IBCommunication {
                     }
                 }
             }
+            return addr + ":" + port;
         } catch (Throwable e) {
             throw new IbisConfigurationException("Cannot determine addresses",
                     e);
         }
-        // TODO: get IP of Infiniband and use that!
-        return addr + ":" + port;
     }
 
     public static int clientConnect(String address, ReceivePortIdentifier id)
@@ -92,7 +95,13 @@ public class IBCommunication {
         int i = address.lastIndexOf(":");
         String a = address.substring(0, i);
         String p = address.substring(i + 1);
-        int sockfd = clientConnect2(a, p);
+        int sockfd;
+        try {
+            sockfd = clientConnect2(a, p);
+        } catch(Throwable e) {
+                throw new ConnectionFailedException("cannot connect to " + address,
+                        id, e);
+        }
         if (sockfd < 0) {
             throw new ConnectionFailedException("cannot connect to " + address,
                     id);
@@ -137,7 +146,7 @@ public class IBCommunication {
         if (!bb.isDirect()) {
             throw new IbisIOException("Direct bytebuffer expected");
         }
-        int r = receive2(sockfd, bb, bb.position(), size);
+        int r = receive2(sockfd, bb, bb.position(), size, false);
         if (r < 0) {
             throw new IbisIOException("Something wrong in receive2");
         }
@@ -145,7 +154,22 @@ public class IBCommunication {
         return r;
     }
 
-    public static void close(int sockfd) {
+    public static void receiveFull(int sockfd, ByteBuffer bb) throws IbisIOException {
+        if (sockfd < 0) {
+            throw new IbisIOException("invalid socket file descriptor");
+        }
+        int size = bb.remaining();
+        if (!bb.isDirect()) {
+            throw new IbisIOException("Direct bytebuffer expected");
+        }
+        int r = receive2(sockfd, bb, bb.position(), size, true);
+        if (r != size) {
+            throw new IbisIOException("Something wrong in receive2");
+        }
+        bb.position(bb.position() + r);
+    }
+
+    public static void close(int sockfd) throws IbisIOException {
         close2(sockfd);
     }
 

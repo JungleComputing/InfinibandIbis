@@ -14,7 +14,6 @@ import ibis.ipl.impl.WriteMessage;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.WritableByteChannel;
 import java.util.Properties;
 
 final class IbSendPort extends SendPort implements IbProtocol {
@@ -24,7 +23,7 @@ final class IbSendPort extends SendPort implements IbProtocol {
     private class Conn extends SendPortConnectionInfo {
         IbSocket s;
 
-        WritableByteChannel out;
+        WriteChannel out;
 
         Conn(IbSocket s, IbSendPort port, ReceivePortIdentifier target)
                 throws IOException {
@@ -65,7 +64,7 @@ final class IbSendPort extends SendPort implements IbProtocol {
                 type.hasCapability(PortType.CONNECTION_ONE_TO_MANY)
                         || type.hasCapability(PortType.CONNECTION_MANY_TO_MANY));
 
-        bufferedStream = new ByteBufferOutputStream(splitter);
+        bufferedStream = new ByteBufferOutputStream(splitter, 16384);
         initStream(bufferedStream);
     }
 
@@ -157,7 +156,7 @@ final class IbSendPort extends SendPort implements IbProtocol {
             SplitterException e = (SplitterException) x;
 
             Exception[] exceptions = e.getExceptions();
-            WritableByteChannel[] streams = e.getStreams();
+            WriteChannel[] streams = e.getStreams();
 
             for (int i = 0; i < ports.length; i++) {
                 Conn c = (Conn) getInfo(ports[i]);

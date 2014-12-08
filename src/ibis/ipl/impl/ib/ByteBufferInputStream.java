@@ -17,19 +17,18 @@ import java.nio.IntBuffer;
 import java.nio.LongBuffer;
 import java.nio.ReadOnlyBufferException;
 import java.nio.ShortBuffer;
-import java.nio.channels.ReadableByteChannel;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * This is a complete implementation of <code>DataInputStream</code>. It is
- * built on top of an <code>ReadableByteChannel</code>. There is no need to put
+ * built on top of an <code>ReadChannel</code>. There is no need to put
  * any buffering inbetween. This implementation does all the buffering needed.
  */
 public final class ByteBufferInputStream extends DataInputStream {
 
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
 
     private static final Logger logger = LoggerFactory
             .getLogger(ByteBufferInputStream.class);
@@ -38,7 +37,7 @@ public final class ByteBufferInputStream extends DataInputStream {
     private final int BUF_SIZE;
 
     /** The underlying <code>InputStream</code>. */
-    private ReadableByteChannel in;
+    private ReadChannel in;
 
     /** The buffer. */
     private ByteBuffer buffer;
@@ -54,22 +53,25 @@ public final class ByteBufferInputStream extends DataInputStream {
      * @param bufSize
      *            the size of the input buffer in bytes
      */
-    public ByteBufferInputStream(ReadableByteChannel in, int bufSize,
+    public ByteBufferInputStream(ReadChannel in, int bufSize,
             ByteOrder order) {
         this.in = in;
         BUF_SIZE = bufSize;
         buffer = ByteBuffer.allocateDirect(BUF_SIZE);
         buffer.order(order);
         buffer.limit(0);
+        if (DEBUG && logger.isDebugEnabled()) {
+            logger.debug("Creating ByteBufferInputStream " + bufSize, new Throwable());
+        }
     }
 
     /**
      * Constructor.
      * 
      * @param in
-     *            the underlying <code>InStream</code>
+     *            the underlying <code>ReadChannel</code>
      */
-    public ByteBufferInputStream(ReadableByteChannel in, ByteOrder order) {
+    public ByteBufferInputStream(ReadChannel in, ByteOrder order) {
         this(in, IOProperties.BUFFER_SIZE, order);
     }
 
@@ -125,7 +127,7 @@ public final class ByteBufferInputStream extends DataInputStream {
         while (buffered_bytes < len) {
             buffer.limit(BUF_SIZE);
             int n = in.read(buffer);
-            if (n < 0) {
+            if (n <= 0) {
                 throw new java.io.EOFException("EOF encountered");
             }
             bytes += n;
@@ -503,14 +505,9 @@ public final class ByteBufferInputStream extends DataInputStream {
             len -= l;
         }
         if (value.isDirect()) {
-            while (len > 0) {
-                int n = in.read(value);
-                if (n < 0) {
-                    throw new java.io.EOFException("EOF encountered");
-                }
-                bytes += n;
-                len -= n;
-            }
+            in.readFully(value);
+            bytes += len;
+            len = 0;
         } else {
             byte[] b = value.array();
             int off = value.arrayOffset() + value.position();

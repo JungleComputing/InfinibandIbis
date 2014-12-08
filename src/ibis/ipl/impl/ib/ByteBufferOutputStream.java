@@ -15,14 +15,13 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
 import java.nio.ShortBuffer;
-import java.nio.channels.WritableByteChannel;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * This is a complete implementation of <code>DataOutputStream</code>. It is
- * built on top of an <code>WritableByteChannel</code>. There is no need to put
+ * built on top of an <code>WriteChannel</code>. There is no need to put
  * any buffering inbetween. This implementation does all the buffering needed.
  */
 public final class ByteBufferOutputStream extends DataOutputStream {
@@ -30,13 +29,13 @@ public final class ByteBufferOutputStream extends DataOutputStream {
     private static final Logger logger = LoggerFactory
             .getLogger(ByteBufferOutputStream.class);
 
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
 
     /** Size of the buffer in which output data is collected. */
     private final int BUF_SIZE;
 
-    /** The underlying <code>WritableByteChannel</code>. */
-    private WritableByteChannel out;
+    /** The underlying <code>WriteChannel</code>. */
+    private WriteChannel out;
 
     /** The buffer in which output data is collected. */
     private ByteBuffer buffer;
@@ -52,11 +51,14 @@ public final class ByteBufferOutputStream extends DataOutputStream {
      * @param bufSize
      *            the size of the output buffer in bytes
      */
-    public ByteBufferOutputStream(WritableByteChannel out, int bufSize) {
+    public ByteBufferOutputStream(WriteChannel out, int bufSize) {
         this.out = out;
         BUF_SIZE = bufSize;
         buffer = ByteBuffer.allocateDirect(BUF_SIZE);
         buffer.order(ByteOrder.nativeOrder());
+        if (DEBUG && logger.isDebugEnabled()) {
+            logger.debug("Creating ByteBufferOutputStream " + bufSize, new Throwable());
+        }
     }
 
     /**
@@ -65,7 +67,7 @@ public final class ByteBufferOutputStream extends DataOutputStream {
      * @param out
      *            the underlying <code>OutputStream</code>
      */
-    public ByteBufferOutputStream(WritableByteChannel out) {
+    public ByteBufferOutputStream(WriteChannel out) {
         this(out, IOProperties.BUFFER_SIZE);
     }
 

@@ -5,13 +5,11 @@ import ibis.ipl.ReceivePortIdentifier;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
 
 class IbSocket {
     int sockfd = -1;
-    WritableByteChannel out;
-    ReadableByteChannel in;
+    WriteChannel out;
+    ReadChannel in;
 
     public IbSocket() {
         // nothing
@@ -21,60 +19,22 @@ class IbSocket {
         sockfd = fd;
     }
 
-    synchronized WritableByteChannel getOutputChannel() throws IOException {
+    synchronized WriteChannel getOutputChannel() throws IOException {
         if (sockfd < 0) {
             return null;
         }
         if (out == null) {
-            out = new WritableByteChannel() {
-
-                @Override
-                public boolean isOpen() {
-                    return true;
-                }
-
-                @Override
-                public void close() throws IOException {
-                    // nothing
-                }
-
-                @Override
-                public int write(ByteBuffer src) throws IOException {
-                    int retval = IBCommunication.send(sockfd, src);
-                    return retval;
-                }
-            };
+            out = new WriteChannel(sockfd);
         }
         return out;
     }
 
-    synchronized ReadableByteChannel getInputChannel() throws IOException {
+    synchronized ReadChannel getInputChannel() throws IOException {
         if (sockfd < 0) {
             return null;
         }
         if (in == null) {
-            in = new ReadableByteChannel() {
-
-                @Override
-                public boolean isOpen() {
-                    return true;
-                }
-
-                @Override
-                public void close() throws IOException {
-                    // nothing
-                }
-
-                @Override
-                public int read(ByteBuffer dst) throws IOException {
-                    int r = IBCommunication.receive(sockfd, dst);
-                    if (r == 0) {
-                        // End of file
-                        return -1;
-                    }
-                    return r;
-                }
-            };
+            in = new ReadChannel(sockfd);
         }
         return in;
     }

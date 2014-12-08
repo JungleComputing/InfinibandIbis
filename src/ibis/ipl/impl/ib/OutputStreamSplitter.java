@@ -6,16 +6,15 @@ import ibis.util.ThreadPool;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 
 /**
- * Contract: write to multiple WritableByteChannels. When an exception occurs,
+ * Contract: write to multiple WriteChannels. When an exception occurs,
  * store it and continue. When the data is written to all channels, throw a
  * single exception that contains all previous exceptions. This way, even when
  * one of the channels dies, the rest will receive the data.
  **/
-public final class OutputStreamSplitter implements WritableByteChannel {
+public final class OutputStreamSplitter extends WriteChannel {
 
     private static final int MAXTHREADS = 32;
 
@@ -24,7 +23,7 @@ public final class OutputStreamSplitter implements WritableByteChannel {
     private SplitterException savedException = null;
     private long bytesWritten = 0;
 
-    ArrayList<WritableByteChannel> out = new ArrayList<WritableByteChannel>();
+    ArrayList<WriteChannel> out = new ArrayList<WriteChannel>();
 
     private int numSenders = 0;
 
@@ -60,7 +59,7 @@ public final class OutputStreamSplitter implements WritableByteChannel {
 
     void doWrite(ByteBuffer buffer, int index) {
 	try {
-	    WritableByteChannel o = out.get(index);
+	    WriteChannel o = out.get(index);
 	    if (o != null) {
 		int r = buffer.remaining();
 		while (r > 0) {
@@ -75,7 +74,7 @@ public final class OutputStreamSplitter implements WritableByteChannel {
 
     void doClose(int index) {
 	try {
-	    WritableByteChannel o = out.get(index);
+	    WriteChannel o = out.get(index);
 	    if (o != null) {
 		o.close();
 	    }
@@ -100,7 +99,7 @@ public final class OutputStreamSplitter implements WritableByteChannel {
     }
 
     public OutputStreamSplitter() {
-	// empty constructor
+	super(-1);
     }
 
     public OutputStreamSplitter(boolean removeOnException, boolean saveException) {
@@ -109,11 +108,11 @@ public final class OutputStreamSplitter implements WritableByteChannel {
 	this.saveException = saveException;
     }
 
-    public synchronized void add(WritableByteChannel s) {
+    public synchronized void add(WriteChannel s) {
 	out.add(s);
     }
 
-    public synchronized void remove(WritableByteChannel s) throws IOException {
+    public synchronized void remove(WriteChannel s) throws IOException {
 
 	while (numSenders != 0) {
 	    try {

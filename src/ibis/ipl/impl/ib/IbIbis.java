@@ -123,13 +123,11 @@ public final class IbIbis extends ibis.ipl.impl.Ibis implements Runnable,
             IbSocket s = null;
             int result = -1;
 
-            sp.printManagementProperties(System.out);
-
             try {
                 s = factory.createClientSocket(idAddr, timeout, fillTimeout,
                         rip);
                 out = new DataOutputStream(new ByteBufferOutputStream(
-                        s.getOutputChannel(), 128 * 1024));
+                        s.getOutputChannel()));
                 out.writeByte(ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN ? 0
                         : 1);
                 out.writeUTF(name);
@@ -241,7 +239,7 @@ public final class IbIbis extends ibis.ipl.impl.Ibis implements Runnable,
         }
 
         ByteBufferInputStream bais = new ByteBufferInputStream(
-                s.getInputChannel(), 128 * 1024, ByteOrder.LITTLE_ENDIAN);
+                s.getInputChannel(), 16 * 1024, ByteOrder.LITTLE_ENDIAN);
 
         DataInputStream in = new DataInputStream(bais);
         ByteBufferOutputStream bout = new ByteBufferOutputStream(
