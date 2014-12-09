@@ -55,8 +55,8 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 	this.out = out;
 	BUF_SIZE = bufSize;
 	buffer = ByteBuffer.allocateDirect(BUF_SIZE);
-	// buffer.order(ByteOrder.nativeOrder());
-	buffer.order(ByteOrder.BIG_ENDIAN); // For testing ...
+	buffer.order(ByteOrder.nativeOrder());
+	// buffer.order(ByteOrder.BIG_ENDIAN); // For testing ...
 	if (DEBUG && logger.isDebugEnabled()) {
 	    logger.debug("Creating ByteBufferOutputStream " + bufSize,
 		    new Throwable());
