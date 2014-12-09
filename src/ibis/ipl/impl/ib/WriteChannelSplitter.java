@@ -30,15 +30,17 @@ public final class WriteChannelSplitter extends WriteChannel {
     private class Sender implements Runnable {
 	ByteBuffer buffer;
 	int index;
+	int sz;
 
-	Sender(ByteBuffer buffer, int index) {
+	Sender(ByteBuffer buffer, int sz, int index) {
 	    this.buffer = buffer.duplicate();
+	    this.sz = sz;
 	    this.index = index;
 	}
 
 	@Override
 	public void run() {
-	    doWrite(buffer, index);
+	    doWrite(buffer, sz, index);
 	    finish();
 	}
     }
@@ -57,14 +59,13 @@ public final class WriteChannelSplitter extends WriteChannel {
 	}
     }
 
-    void doWrite(ByteBuffer buffer, int index) {
+    private void doWrite(ByteBuffer buffer, int sz, int index) {
 	try {
 	    WriteChannel o = out.get(index);
 	    if (o != null) {
-		int r = buffer.remaining();
-		while (r > 0) {
+		while (sz > 0) {
 		    int n = o.write(buffer);
-		    r -= n;
+		    sz -= n;
 		}
 	    }
 	} catch (IOException e) {
@@ -72,7 +73,7 @@ public final class WriteChannelSplitter extends WriteChannel {
 	}
     }
 
-    void doClose(int index) {
+    private void doClose(int index) {
 	try {
 	    WriteChannel o = out.get(index);
 	    if (o != null) {
@@ -148,11 +149,11 @@ public final class WriteChannelSplitter extends WriteChannel {
 		numSenders++;
 	    }
 	    for (int i = 1; i < sz; i++) {
-		Sender s = new Sender(b, i);
+		Sender s = new Sender(b, r, i);
 		runThread(s, "Splitter sender");
 	    }
 	}
-	doWrite(b, 0);
+	doWrite(b, r, 0);
 	done();
 	return r;
     }
