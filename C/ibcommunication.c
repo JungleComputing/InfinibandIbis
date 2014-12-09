@@ -49,10 +49,10 @@
 #define rs_getsockname(s,a,l) \
 	USE_RS ? rgetsockname(s,a,l) : getsockname(s,a,l)
 
-#define BLOCKING 1
+#define BLOCKING 0
 #define TIMEOUT 0
 #define DEBUG 0
-#define MAXSIZE 16384
+#define MAXSIZE 0
 #define TIMING 0
 
 
@@ -173,7 +173,9 @@ static int recv_xfer(JNIEnv *env, int sockfd, void *buf, int size, int fully)
 	return 0;
     }
 
-    for (offset = 0; offset < (fully ? size : 1); ) {
+    int limit = fully ? size : 1;
+
+    for (offset = 0; offset < limit; ) {
 	int sz = size - offset;
 #if MAXSIZE > 0
 	if (sz > MAXSIZE) sz = MAXSIZE;
