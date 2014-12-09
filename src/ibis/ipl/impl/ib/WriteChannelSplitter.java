@@ -9,12 +9,12 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 
 /**
- * Contract: write to multiple WriteChannels. When an exception occurs,
- * store it and continue. When the data is written to all channels, throw a
- * single exception that contains all previous exceptions. This way, even when
- * one of the channels dies, the rest will receive the data.
+ * Contract: write to multiple WriteChannels. When an exception occurs, store it
+ * and continue. When the data is written to all channels, throw a single
+ * exception that contains all previous exceptions. This way, even when one of
+ * the channels dies, the rest will receive the data.
  **/
-public final class OutputStreamSplitter extends WriteChannel {
+public final class WriteChannelSplitter extends WriteChannel {
 
     private static final int MAXTHREADS = 32;
 
@@ -98,11 +98,11 @@ public final class OutputStreamSplitter extends WriteChannel {
 	}
     }
 
-    public OutputStreamSplitter() {
+    public WriteChannelSplitter() {
 	super(-1);
     }
 
-    public OutputStreamSplitter(boolean removeOnException, boolean saveException) {
+    public WriteChannelSplitter(boolean removeOnException, boolean saveException) {
 	this();
 	this.removeOnException = removeOnException;
 	this.saveException = saveException;
@@ -134,8 +134,9 @@ public final class OutputStreamSplitter extends WriteChannel {
     @Override
     public int write(ByteBuffer b) throws IOException {
 	int r = b.remaining();
-	if (out.size() > 0) {
-	    bytesWritten += r * out.size();
+	int sz = out.size();
+	bytesWritten += r * sz;
+	if (sz > 1) {
 	    synchronized (this) {
 		while (numSenders != 0) {
 		    try {
@@ -146,20 +147,20 @@ public final class OutputStreamSplitter extends WriteChannel {
 		}
 		numSenders++;
 	    }
-	    for (int i = 1; i < out.size(); i++) {
+	    for (int i = 1; i < sz; i++) {
 		Sender s = new Sender(b, i);
 		runThread(s, "Splitter sender");
 	    }
-	    doWrite(b, 0);
-	    done();
 	}
+	doWrite(b, 0);
+	done();
 	return r;
     }
 
     @Override
     public void close() throws IOException {
 
-	if (out.size() > 0) {
+	if (out.size() > 1) {
 	    synchronized (this) {
 		while (numSenders != 0) {
 		    try {
@@ -175,9 +176,9 @@ public final class OutputStreamSplitter extends WriteChannel {
 		Closer f = new Closer(i);
 		runThread(f, "Splitter closer");
 	    }
-	    doClose(0);
-	    done();
 	}
+	doClose(0);
+	done();
     }
 
     public long bytesWritten() {
@@ -209,18 +210,22 @@ public final class OutputStreamSplitter extends WriteChannel {
     }
 
     private void done() throws IOException {
-	synchronized (this) {
-	    numSenders--;
-	    while (numSenders != 0) {
-		try {
-		    wait();
-		} catch (Exception e) {
-		    // Ignored
+	if (out.size() > 1) {
+	    synchronized (this) {
+		numSenders--;
+		while (numSenders != 0) {
+		    try {
+			wait();
+		    } catch (Exception e) {
+			// Ignored
+		    }
 		}
+		notifyAll();
 	    }
-	    notifyAll();
+	}
 
-	    if (savedException != null) {
+	if (savedException != null) {
+	    synchronized (this) {
 		if (removeOnException) {
 		    for (int i = 0; i < out.size(); i++) {
 			if (out.get(i) == null) {
