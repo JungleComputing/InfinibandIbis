@@ -168,9 +168,16 @@ public final class ByteBufferInputStream extends DataInputStream {
 	if (DEBUG && logger.isDebugEnabled()) {
 	    logger.debug("readArray(byte[" + off + " ... " + (off + len) + "])");
 	}
+	int buffered_bytes = buffer.remaining();
+	if (buffered_bytes > 0) {
+	    int l = min(len, buffered_bytes);
+	    buffer.get(a, off, l);
+	    off += l;
+	    len -= l;
+	}
 	while (len > 0) {
 	    fillBuffer(min(BUF_SIZE, len));
-	    int buffered_bytes = buffer.remaining();
+	    buffered_bytes = buffer.remaining();
 	    int l = min(len, buffered_bytes);
 	    buffer.get(a, off, l);
 	    off += l;
@@ -512,14 +519,16 @@ public final class ByteBufferInputStream extends DataInputStream {
 	    len -= l;
 	    bytes += l;
 	}
-	if (value.isDirect()) {
-	    in.readFully(value);
-	    bytes += len;
-	    len = 0;
-	} else {
-	    byte[] b = value.array();
-	    int off = value.arrayOffset() + value.position();
-	    readArray(b, off, len);
+	if (len > 0) {
+	    if (value.isDirect()) {
+		in.readFully(value);
+		bytes += len;
+		len = 0;
+	    } else {
+		byte[] b = value.array();
+		int off = value.arrayOffset() + value.position();
+		readArray(b, off, len);
+	    }
 	}
 	value.position(position);
     }

@@ -96,14 +96,17 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 	int index = buffer.position();
 	if (DEBUG && logger.isDebugEnabled()) {
 	    logger.debug("flush(" + incr + ") : " + " "
-		    + (index + incr >= BUF_SIZE) + " " + (index) + ")");
+		    + (index + incr > BUF_SIZE) + " " + (index) + ")");
 	}
 
 	if (index + incr > BUF_SIZE) {
 	    bytes += index;
 	    buffer.limit(index);
 	    buffer.position(0);
-	    out.write(buffer);
+	    while (index > 0) {
+		int w = out.write(buffer);
+		index -= w;
+	    }
 	    buffer.clear();
 	}
     }
@@ -221,7 +224,7 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 		    .min((BUF_SIZE - index) / Constants.SIZEOF_CHAR, len);
 	    CharBuffer c = buffer.asCharBuffer();
 	    c.put(ref, off, size);
-	    buffer.position(buffer.position() + size * Constants.SIZEOF_SHORT);
+	    buffer.position(index + size * Constants.SIZEOF_CHAR);
 
 	    off += size;
 	    len -= size;
@@ -243,7 +246,7 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 		    len);
 	    ShortBuffer s = buffer.asShortBuffer();
 	    s.put(ref, off, size);
-	    buffer.position(buffer.position() + size * Constants.SIZEOF_SHORT);
+	    buffer.position(index + size * Constants.SIZEOF_SHORT);
 
 	    off += size;
 	    len -= size;
@@ -263,7 +266,7 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 
 	    int size = Math.min((BUF_SIZE - index) / Constants.SIZEOF_INT, len);
 	    i.put(ref, off, size);
-	    buffer.position(buffer.position() + size * Constants.SIZEOF_INT);
+	    buffer.position(index + size * Constants.SIZEOF_INT);
 
 	    off += size;
 	    len -= size;
@@ -285,7 +288,7 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 	    int size = Math
 		    .min((BUF_SIZE - index) / Constants.SIZEOF_LONG, len);
 	    l.put(ref, off, size);
-	    buffer.position(buffer.position() + size * Constants.SIZEOF_LONG);
+	    buffer.position(index + size * Constants.SIZEOF_LONG);
 
 	    off += size;
 	    len -= size;
@@ -306,7 +309,7 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 	    int size = Math.min((BUF_SIZE - index) / Constants.SIZEOF_FLOAT,
 		    len);
 	    f.put(ref, off, size);
-	    buffer.position(buffer.position() + size * Constants.SIZEOF_FLOAT);
+	    buffer.position(index + size * Constants.SIZEOF_FLOAT);
 
 	    off += size;
 	    len -= size;
@@ -328,7 +331,7 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 	    int size = Math.min((BUF_SIZE - index) / Constants.SIZEOF_DOUBLE,
 		    len);
 	    d.put(ref, off, size);
-	    buffer.position(buffer.position() + size * Constants.SIZEOF_DOUBLE);
+	    buffer.position(index + size * Constants.SIZEOF_DOUBLE);
 
 	    off += size;
 	    len -= size;
