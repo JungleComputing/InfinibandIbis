@@ -56,7 +56,6 @@ final class IbSendPort extends SendPort implements IbProtocol {
     IbSendPort(Ibis ibis, PortType type, String name,
 	    SendPortDisconnectUpcall cU, Properties props) throws IOException {
 	super(ibis, type, name, cU, props);
-	addValidKey("nParallelStreams");
 
 	splitter = new WriteChannelSplitter(
 		!type.hasCapability(PortType.CONNECTION_ONE_TO_ONE)
