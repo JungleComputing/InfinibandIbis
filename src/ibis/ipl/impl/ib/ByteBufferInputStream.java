@@ -496,10 +496,12 @@ public final class ByteBufferInputStream extends DataInputStream {
 
 	if (buffered > 0) {
 	    int l = min(len, buffered);
-	    System.out.println("Had buffered bytes: " + buffered);
+	    // System.out.println("Had buffered bytes: " + buffered);
 	    if (value.hasArray()) {
 		buffer.get(value.array(), value.arrayOffset() + position, l);
 		value.position(position + l);
+	    } else if (l == buffered) {
+		value.put(buffer);
 	    } else {
 		if (tempBuffer == null) {
 		    tempBuffer = new byte[BUF_SIZE];
