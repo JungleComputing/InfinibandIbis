@@ -45,6 +45,8 @@ public final class ByteBufferInputStream extends DataInputStream {
     /** Number of bytes read so far from the underlying layer. */
     private long bytes = 0;
 
+    private byte[] tempBuffer;
+
     /**
      * Constructor.
      * 
@@ -499,9 +501,11 @@ public final class ByteBufferInputStream extends DataInputStream {
 		buffer.get(value.array(), value.arrayOffset() + position, l);
 		value.position(position + l);
 	    } else {
-		byte[] b = new byte[l];
-		buffer.get(b);
-		value.put(b);
+		if (tempBuffer == null) {
+		    tempBuffer = new byte[BUF_SIZE];
+		}
+		buffer.get(tempBuffer, 0, l);
+		value.put(tempBuffer, 0, l);
 	    }
 	    len -= l;
 	    bytes += l;
