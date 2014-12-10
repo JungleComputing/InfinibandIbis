@@ -41,6 +41,8 @@ public class IBCommunication {
 
     public static native int close2(int sockfd) throws IbisIOException;
 
+    public static native void initialize(boolean blocking, int maxSize);
+
     public static String getPeerIP(int sockfd)
             throws IbisConfigurationException {
         try {

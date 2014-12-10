@@ -49,10 +49,8 @@
 #define rs_getsockname(s,a,l) \
 	USE_RS ? rgetsockname(s,a,l) : getsockname(s,a,l)
 
-#define BLOCKING 0
 #define TIMEOUT 0
 #define DEBUG 0
-#define MAXSIZE 0
 #define TIMING 0
 
 
@@ -67,13 +65,10 @@ int do_poll(struct pollfd *fds, int timeout)
 	return ret == 1 ? (fds->revents & (POLLERR | POLLHUP)) : ret;
 }
 
-#if BLOCKING
-// the message size has to equal the buffer size, otherwise it would block
-// No, not if flags == 0. --Ceriel
-static int flags = 0;
-#else
+// Defaults for non-blocking.
 static int flags = MSG_DONTWAIT;
-#endif
+static int blocking = 0;
+static int maxsize = 0;
 
 static int poll_timeout = 0;
 static int keepalive = 0;
@@ -121,9 +116,7 @@ static int send_xfer(JNIEnv *env, int sockfd, void *buf, int size)
 
     for (offset = 0; offset < size; ) {
 	int sz = size - offset;
-#if MAXSIZE > 0
-	if (sz > MAXSIZE) sz = MAXSIZE;
-#endif
+	if (maxsize > 0 && sz > maxsize) sz = maxsize;
 	ret = rs_send(sockfd, buf + offset, sz, flags);
 #if DEBUG
 	if (ret != -1) {
@@ -143,13 +136,15 @@ static int send_xfer(JNIEnv *env, int sockfd, void *buf, int size)
 	    offset += ret;
 	} else if (ret < 0) {
 	    if (errno == EWOULDBLOCK || errno == EAGAIN) {
-#if BLOCKING && TIMEOUT > 0
-		printf("timeout at ");
-		printTm(TIMEOUT);
-		printf(" rs_send(), still need to send %d bytes to sockfd %d ", size - offset, sockfd);
-		printIP(env, "", sockfd);
-		printf("\n");
-		fflush(stdout);
+#if DEBUG && TIMEOUT > 0
+		if (blocking) {
+		    printf("timeout at ");
+		    printTm(TIMEOUT);
+		    printf(" rs_send(), still need to send %d bytes to sockfd %d ", size - offset, sockfd);
+		    printIP(env, "", sockfd);
+		    printf("\n");
+		    fflush(stdout);
+		}
 #endif
 	    }
 	    else {
@@ -177,9 +172,7 @@ static int recv_xfer(JNIEnv *env, int sockfd, void *buf, int size, int fully)
 
     for (offset = 0; offset < limit; ) {
 	int sz = size - offset;
-#if MAXSIZE > 0
-	if (sz > MAXSIZE) sz = MAXSIZE;
-#endif
+	if (maxsize > 0 && sz > maxsize) sz = maxsize;
 	// fprintf(stdout, "recv(%d, %p, %d, %d)\n", sockfd, buf + offset, sz, flags);
 	// fflush(stdout);
 	ret = rs_recv(sockfd, buf + offset, sz, flags);
@@ -204,13 +197,15 @@ static int recv_xfer(JNIEnv *env, int sockfd, void *buf, int size, int fully)
 	} 
 	else if (ret < 0) {
 	    if (errno == EWOULDBLOCK || errno == EAGAIN) {
-#if BLOCKING && TIMEOUT > 0
-		printf("timeout at ");
-		printTm(TIMEOUT);
-		printf(" rs_recv(), still expecting %d bytes from sockfd %d ", size - offset, sockfd);
-		printIP(env, "", sockfd);
-		printf("\n");
-		fflush(stdout);
+#if DEBUG && TIMEOUT > 0
+		if (blocking) {
+		    printf("timeout at ");
+		    printTm(TIMEOUT);
+		    printf(" rs_recv(), still expecting %d bytes from sockfd %d ", size - offset, sockfd);
+		    printIP(env, "", sockfd);
+		    printf("\n");
+		    fflush(stdout);
+		}
 #endif
 	    }
 	    else {
@@ -273,22 +268,24 @@ static void set_options(JNIEnv *env, int rs)
     }
 
 
-#if BLOCKING && TIMEOUT > 0
-    struct timeval timeout;      
-    timeout.tv_sec = TIMEOUT;
-    timeout.tv_usec = 0;
+#if TIMEOUT > 0
+    if (blocking) {
+	struct timeval timeout;      
+	timeout.tv_sec = TIMEOUT;
+	timeout.tv_usec = 0;
 
-    if (!USE_RS) {
-	if (rs_setsockopt (rs, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
-		    sizeof(timeout)) < 0) {
-	    printf("setsockopt failed\n");
-	    fflush(stdout);
+	if (!USE_RS) {
+	    if (rs_setsockopt (rs, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
+			sizeof(timeout)) < 0) {
+		printf("setsockopt failed\n");
+		fflush(stdout);
+	    }
+
+	    if (rs_setsockopt (rs, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
+			sizeof(timeout)) < 0)
+		printf("setsockopt failed\n");
+		fflush(stdout);
 	}
-
-	if (rs_setsockopt (rs, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
-		    sizeof(timeout)) < 0)
-	    printf("setsockopt failed\n");
-	    fflush(stdout);
     }
 #endif
 
@@ -655,4 +652,16 @@ JNIEXPORT jstring JNICALL Java_ibis_ipl_impl_ib_IBCommunication_getSockIP2(JNIEn
     }
 
     return result;
+}
+
+JNIEXPORT void JNICALL Java_ibis_ipl_impl_ib_IBCommunication_initialize(JNIEnv * env, jclass c, jboolean jblocking, jint jmaxsize) {
+
+    maxsize = jmaxsize;
+    if (jblocking) {
+	blocking = 1;
+	flags = 0;
+    } else {
+	flags = MSG_DONTWAIT;
+	blocking = 0;
+    }
 }
