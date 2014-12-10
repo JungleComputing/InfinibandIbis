@@ -24,7 +24,8 @@ import org.slf4j.LoggerFactory;
 /**
  * This is a complete implementation of <code>DataInputStream</code>. It is
  * built on top of an <code>ReadChannel</code>. There is no need to put any
- * buffering inbetween. This implementation does all the buffering needed.
+ * buffering in between. This implementation does all the buffering needed,
+ * reading from a direct ByteBuffer.
  */
 public final class ByteBufferInputStream extends DataInputStream {
 
@@ -36,7 +37,7 @@ public final class ByteBufferInputStream extends DataInputStream {
     /** The buffer size. */
     private final int BUF_SIZE;
 
-    /** The underlying <code>InputStream</code>. */
+    /** The underlying <code>ReadChannel</code>. */
     private ReadChannel in;
 
     /** The buffer. */
@@ -51,9 +52,11 @@ public final class ByteBufferInputStream extends DataInputStream {
      * Constructor.
      * 
      * @param in
-     *            the underlying <code>InStream</code>
+     *            the underlying <code>ReadChannel</code>
      * @param bufSize
      *            the size of the input buffer in bytes
+     * @param order
+     *            the byte order in which the data is to be received
      */
     public ByteBufferInputStream(ReadChannel in, int bufSize, ByteOrder order) {
 	this.in = in;
@@ -72,6 +75,8 @@ public final class ByteBufferInputStream extends DataInputStream {
      * 
      * @param in
      *            the underlying <code>ReadChannel</code>
+     * @param order
+     *            the byte order in which the data is to be received
      */
     public ByteBufferInputStream(ReadChannel in, ByteOrder order) {
 	this(in, IOProperties.BUFFER_SIZE, order);
@@ -103,9 +108,7 @@ public final class ByteBufferInputStream extends DataInputStream {
 
     private final void fillBuffer(int len) throws IOException {
 
-	// This ensures that there are at least 'len' bytes in the buffer
-	// PRECONDITION: 'index + buffered_bytes' should never be larger
-	// than BUF_SIZE!!
+	// This ensures that there are at least 'len' bytes in the buffer.
 
 	int buffered_bytes = buffer.remaining();
 	if (buffered_bytes >= len) {
@@ -503,12 +506,11 @@ public final class ByteBufferInputStream extends DataInputStream {
 
 	if (buffered > 0) {
 	    int l = min(len, buffered);
-	    // System.out.println("Had buffered bytes: " + buffered);
-	    if (value.hasArray()) {
+	    if (l == buffered) {
+		value.put(buffer);
+	    } else if (value.hasArray()) {
 		buffer.get(value.array(), value.arrayOffset() + position, l);
 		value.position(position + l);
-	    } else if (l == buffered) {
-		value.put(buffer);
 	    } else {
 		if (tempBuffer == null) {
 		    tempBuffer = new byte[BUF_SIZE];

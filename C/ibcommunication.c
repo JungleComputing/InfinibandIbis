@@ -293,111 +293,6 @@ static void set_options(JNIEnv *env, int rs)
 	set_keepalive(env, rs);
 }
 
-int server_listen(JNIEnv *env)
-{
-    struct addrinfo *ai = NULL;
-    struct addrinfo hints;
-    int val, ret;
-    int p = 7139;
-    char port[32];
-    int lrs = 0;
-
-    memset(&hints, 0, sizeof(struct addrinfo));
-    hints.ai_family = AF_INET;
-    hints.ai_flags = AI_PASSIVE;
-
-#if DEBUG
-    fprintf(stdout, "server_listen\n");
-    fflush(stdout);
-#endif
-    for (;;p++) {
-	sprintf(port, "%d", p);
-	if (ai != NULL) {
-	    freeaddrinfo(ai);
-	}
-	ret = getaddrinfo(NULL, port, &hints, &ai);
-
-	if (ret) {
-	    throwException(env, "getaddrinfo", gai_strerror(ret));
-	    return ret;
-	}
-
-	lrs = rs_socket(ai->ai_family, SOCK_STREAM, 0);
-	if (lrs < 0) {
-	    throwException(env, "rsocket", strerror(errno));
-	    ret = lrs;
-	    break;
-	}
-
-	val = 1;
-	ret = rs_setsockopt(lrs, SOL_SOCKET, SO_REUSEADDR, &val, sizeof val);
-	if (ret) {
-	    throwException(env, "rsetsockopt SO_REUSEADDR", strerror(errno));
-	    break;
-	}
-
-	ret = rs_bind(lrs, ai->ai_addr, ai->ai_addrlen);
-	if (ret) {
-	    if (errno == EADDRINUSE) {
-		rs_close(lrs);
-		continue;
-	    }
-	    throwException(env, "rbind", strerror(errno));
-	    break;
-	}
-
-	ret = rs_listen(lrs, SOMAXCONN);
-	if (ret) {
-	    if (errno == EADDRINUSE) {
-		rs_close(lrs);
-		continue;
-	    }
-	    throwException(env, "rlisten", strerror(errno));
-	}
-	break;
-    }
-
-    if (ret && lrs > 0)
-	rs_close(lrs);
-free:
-    freeaddrinfo(ai);
-
-    if (ret) {
-	return ret;
-    }
-#if DEBUG
-    puts("done server_listen");
-    fflush(stdout);
-#endif
-    return lrs;
-}
-
-int myAccept(JNIEnv *env, int l_sockfd)
-{
-    int sockfd;
-
-#if DEBUG
-    puts("myAccept");
-    fflush(stdout);
-#endif
-
-    do {
-	sockfd = rs_accept(l_sockfd, NULL, 0);
-    } while (sockfd < 0 && (errno == EAGAIN || errno == EWOULDBLOCK));
-    if (sockfd < 0) {
-	throwException(env, "raccept", strerror(errno));
-	return sockfd;
-    }
-
-    set_options(env, sockfd);
-#if DEBUG
-    puts("done myAccept");
-    fflush(stdout);
-#endif
-    return sockfd;
-}
-
-
 
 int getPeerIP(JNIEnv *env, char *buffer, int len_buf, int sockfd) {
     socklen_t len;
@@ -555,22 +450,115 @@ JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_close2(JNIEnv *env,
 }
 
 JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_clientConnect2(JNIEnv *env, jclass c, 
-	jstring address, jstring port) {
-    const char *astr = (*env)->GetStringUTFChars(env, address, NULL);
-    const char *pstr = (*env)->GetStringUTFChars(env, port, NULL);
-    jint result = myclientConnect(env, astr, pstr);
-    (*env)->ReleaseStringUTFChars(env, address, astr);
-    (*env)->ReleaseStringUTFChars(env, port, pstr);
+	jstring jaddress, jstring jport) {
+    const char *address = (*env)->GetStringUTFChars(env, jaddress, NULL);
+    const char *port = (*env)->GetStringUTFChars(env, jport, NULL);
+    jint result = myclientConnect(env, address, port);
+    (*env)->ReleaseStringUTFChars(env, jaddress, address);
+    (*env)->ReleaseStringUTFChars(env, jport, port);
     return result;
 }
 
 JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_serverCreate2(JNIEnv *env, jclass c) {
-    return server_listen(env);
+    struct addrinfo *ai = NULL;
+    struct addrinfo hints;
+    int val, ret;
+    int p = 7139;
+    char port[32];
+    int lrs = 0;
+
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_INET;
+    hints.ai_flags = AI_PASSIVE;
+
+#if DEBUG
+    fprintf(stdout, "server create\n");
+    fflush(stdout);
+#endif
+    for (;;p++) {
+	sprintf(port, "%d", p);
+	if (ai != NULL) {
+	    freeaddrinfo(ai);
+	}
+	ret = getaddrinfo(NULL, port, &hints, &ai);
+
+	if (ret) {
+	    throwException(env, "getaddrinfo", gai_strerror(ret));
+	    return ret;
+	}
+
+	lrs = rs_socket(ai->ai_family, SOCK_STREAM, 0);
+	if (lrs < 0) {
+	    throwException(env, "rsocket", strerror(errno));
+	    ret = lrs;
+	    break;
+	}
+
+	val = 1;
+	ret = rs_setsockopt(lrs, SOL_SOCKET, SO_REUSEADDR, &val, sizeof val);
+	if (ret) {
+	    throwException(env, "rsetsockopt SO_REUSEADDR", strerror(errno));
+	    break;
+	}
+
+	ret = rs_bind(lrs, ai->ai_addr, ai->ai_addrlen);
+	if (ret) {
+	    if (errno == EADDRINUSE) {
+		rs_close(lrs);
+		continue;
+	    }
+	    throwException(env, "rbind", strerror(errno));
+	    break;
+	}
+
+	ret = rs_listen(lrs, SOMAXCONN);
+	if (ret) {
+	    if (errno == EADDRINUSE) {
+		rs_close(lrs);
+		continue;
+	    }
+	    throwException(env, "rlisten", strerror(errno));
+	}
+	break;
+    }
+
+    if (ret && lrs > 0)
+	rs_close(lrs);
+free:
+    freeaddrinfo(ai);
+
+    if (ret) {
+	return ret;
+    }
+#if DEBUG
+    puts("done server create");
+    fflush(stdout);
+#endif
+    return lrs;
 }
 
 JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_accept2(JNIEnv *env, jclass c, jint fd) {
-    jint result = myAccept(env, fd);
-    return result;
+    int sockfd;
+
+#if DEBUG
+    puts("Accept");
+    fflush(stdout);
+#endif
+
+    do {
+	sockfd = rs_accept(l_sockfd, NULL, 0);
+    } while (sockfd < 0 && (errno == EAGAIN || errno == EWOULDBLOCK));
+    if (sockfd < 0) {
+	throwException(env, "raccept", strerror(errno));
+	return sockfd;
+    }
+
+    set_options(env, sockfd);
+#if DEBUG
+    puts("done Accept");
+    fflush(stdout);
+#endif
+    return sockfd;
 }
 
 JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_send2(JNIEnv *env, jclass c, jint sockfd, jobject bb, jint offset, jint size) {

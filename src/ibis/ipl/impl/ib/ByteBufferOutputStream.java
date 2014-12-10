@@ -21,8 +21,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * This is a complete implementation of <code>DataOutputStream</code>. It is
- * built on top of an <code>WriteChannel</code>. There is no need to put any
- * buffering inbetween. This implementation does all the buffering needed.
+ * built on top of a <code>WriteChannel</code>. There is no need to put any
+ * buffering in between. This implementation does all the buffering needed, into
+ * a direct ByteBuffer.
  */
 public final class ByteBufferOutputStream extends DataOutputStream {
 
@@ -47,14 +48,15 @@ public final class ByteBufferOutputStream extends DataOutputStream {
      * Constructor.
      * 
      * @param out
-     *            the underlying <code>OutputStream</code>
+     *            the underlying <code>WriteChannel</code>
      * @param bufSize
-     *            the size of the output buffer in bytes
+     *            the size of the ByteBuffer in bytes
      */
     public ByteBufferOutputStream(WriteChannel out, int bufSize) {
 	this.out = out;
 	BUF_SIZE = bufSize;
 	buffer = ByteBuffer.allocateDirect(BUF_SIZE);
+	// Sender determines the byte order.
 	buffer.order(ByteOrder.nativeOrder());
 	// buffer.order(ByteOrder.BIG_ENDIAN); // For testing ...
 	if (DEBUG && logger.isDebugEnabled()) {
@@ -71,7 +73,7 @@ public final class ByteBufferOutputStream extends DataOutputStream {
      * Constructor.
      * 
      * @param out
-     *            the underlying <code>OutputStream</code>
+     *            the underlying <code>WriteChannel</code>
      */
     public ByteBufferOutputStream(WriteChannel out) {
 	this(out, IOProperties.BUFFER_SIZE);
@@ -89,7 +91,7 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 
     /**
      * Checks if there is space for <code>incr</code> more bytes and if not, the
-     * buffer is written to the underlying <code>OutputStream</code>.
+     * buffer is written to the underlying <code>WriteChannel</code>.
      * 
      * @param incr
      *            the space requested
