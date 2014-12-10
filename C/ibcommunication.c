@@ -537,7 +537,7 @@ free:
     return lrs;
 }
 
-JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_accept2(JNIEnv *env, jclass c, jint fd) {
+JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_accept2(JNIEnv *env, jclass c, jint l_sockfd) {
     int sockfd;
 
 #if DEBUG
