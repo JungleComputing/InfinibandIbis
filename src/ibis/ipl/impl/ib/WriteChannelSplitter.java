@@ -153,7 +153,9 @@ public final class WriteChannelSplitter extends WriteChannel {
 		runThread(s, "Splitter sender");
 	    }
 	}
-	doWrite(b, r, 0);
+	if (sz > 0) {
+	    doWrite(b, r, 0);
+	}
 	done();
 	return r;
     }
@@ -161,7 +163,8 @@ public final class WriteChannelSplitter extends WriteChannel {
     @Override
     public void close() throws IOException {
 
-	if (out.size() > 1) {
+	int sz = out.size();
+	if (sz > 1) {
 	    synchronized (this) {
 		while (numSenders != 0) {
 		    try {
@@ -178,7 +181,9 @@ public final class WriteChannelSplitter extends WriteChannel {
 		runThread(f, "Splitter closer");
 	    }
 	}
-	doClose(0);
+	if (sz > 0) {
+	    doClose(0);
+	}
 	done();
     }
 

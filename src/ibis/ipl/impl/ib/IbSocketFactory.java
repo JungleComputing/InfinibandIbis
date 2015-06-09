@@ -18,9 +18,10 @@ class IbSocketFactory {
 
     IbSocketFactory(TypedProperties properties)
 	    throws IbisConfigurationException, IOException {
-        boolean blocking = properties.getBooleanProperty("ibis.ib.blocking", false);
-        int maxSize = properties.getIntProperty("ibis.ib.maxSize", 0);
-        IBCommunication.initialize(blocking, maxSize);
+	boolean blocking = properties.getBooleanProperty("ibis.ib.blocking",
+		false);
+	int maxSize = properties.getIntProperty("ibis.ib.maxSize", 0);
+	IBCommunication.initialize(blocking, maxSize);
     }
 
     void setIdent(IbisIdentifier id) {
