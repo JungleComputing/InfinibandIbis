@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 public final class ByteBufferOutputStream extends DataOutputStream {
 
     private static final Logger logger = LoggerFactory
-            .getLogger(ByteBufferOutputStream.class);
+	    .getLogger(ByteBufferOutputStream.class);
 
     private static final boolean DEBUG = false;
 
@@ -53,10 +53,10 @@ public final class ByteBufferOutputStream extends DataOutputStream {
      *            the size of the output buffer in bytes
      */
     public ByteBufferOutputStream(WritableByteChannel out, int bufSize) {
-        this.out = out;
-        BUF_SIZE = bufSize;
-        buffer = ByteBuffer.allocateDirect(BUF_SIZE);
-        buffer.order(ByteOrder.nativeOrder());
+	this.out = out;
+	BUF_SIZE = bufSize;
+	buffer = ByteBuffer.allocateDirect(BUF_SIZE);
+	buffer.order(ByteOrder.nativeOrder());
     }
 
     /**
@@ -66,17 +66,17 @@ public final class ByteBufferOutputStream extends DataOutputStream {
      *            the underlying <code>OutputStream</code>
      */
     public ByteBufferOutputStream(WritableByteChannel out) {
-        this(out, IOProperties.BUFFER_SIZE);
+	this(out, IOProperties.BUFFER_SIZE);
     }
 
     @Override
     public long bytesWritten() {
-        return bytes + buffer.position();
+	return bytes + buffer.position();
     }
 
     @Override
     public void resetBytesWritten() {
-        bytes = -buffer.position();
+	bytes = -buffer.position();
     }
 
     /**
@@ -90,291 +90,292 @@ public final class ByteBufferOutputStream extends DataOutputStream {
      */
     private void flush(int incr) throws IOException {
 
-        int index = buffer.position();
-        if (DEBUG && logger.isDebugEnabled()) {
-            logger.debug("flush(" + incr + ") : " + " "
-                    + (index + incr >= BUF_SIZE) + " " + (index) + ")");
-        }
+	int index = buffer.position();
+	if (DEBUG && logger.isDebugEnabled()) {
+	    logger.debug("flush(" + incr + ") : " + " "
+		    + (index + incr >= BUF_SIZE) + " " + (index) + ")");
+	}
 
-        if (index + incr > BUF_SIZE) {
-            bytes += index;
-            buffer.limit(index);
-            buffer.position(0);
-            out.write(buffer);
-            buffer.clear();
-        }
+	if (index + incr > BUF_SIZE) {
+	    bytes += index;
+	    buffer.limit(index);
+	    buffer.position(0);
+	    out.write(buffer);
+	    buffer.clear();
+	}
     }
 
     @Override
     public void write(int b) throws IOException {
-        writeByte((byte) b);
+	writeByte((byte) b);
     }
 
     @Override
     public void writeBoolean(boolean value) throws IOException {
-        writeByte(value ? (byte) 1 : (byte) 0);
+	writeByte(value ? (byte) 1 : (byte) 0);
     }
 
     @Override
     public void writeByte(byte value) throws IOException {
-        flush(1);
-        buffer.put(value);
+	flush(1);
+	buffer.put(value);
     }
 
     @Override
     public void writeChar(char value) throws IOException {
-        flush(Constants.SIZEOF_CHAR);
-        buffer.putChar(value);
+	flush(Constants.SIZEOF_CHAR);
+	buffer.putChar(value);
     }
 
     @Override
     public void writeShort(short value) throws IOException {
-        flush(Constants.SIZEOF_SHORT);
-        buffer.putShort(value);
+	flush(Constants.SIZEOF_SHORT);
+	buffer.putShort(value);
     }
 
     @Override
     public void writeInt(int value) throws IOException {
-        flush(Constants.SIZEOF_INT);
-        buffer.putInt(value);
+	flush(Constants.SIZEOF_INT);
+	buffer.putInt(value);
     }
 
     @Override
     public void writeLong(long value) throws IOException {
-        flush(Constants.SIZEOF_LONG);
-        buffer.putLong(value);
+	flush(Constants.SIZEOF_LONG);
+	buffer.putLong(value);
     }
 
     @Override
     public void writeFloat(float value) throws IOException {
-        flush(Constants.SIZEOF_FLOAT);
-        buffer.putFloat(value);
+	flush(Constants.SIZEOF_FLOAT);
+	buffer.putFloat(value);
     }
 
     @Override
     public void writeDouble(double value) throws IOException {
-        flush(Constants.SIZEOF_DOUBLE);
-        buffer.putDouble(value);
+	flush(Constants.SIZEOF_DOUBLE);
+	buffer.putDouble(value);
     }
 
     @Override
     public void write(byte[] b) throws IOException {
-        writeArray(b);
+	writeArray(b);
     }
 
     @Override
     public void write(byte[] b, int off, int len) throws IOException {
-        writeArray(b, off, len);
+	writeArray(b, off, len);
     }
 
     @Override
     public void writeArray(boolean[] ref, int off, int len) throws IOException {
-        if (DEBUG && logger.isDebugEnabled()) {
-            logger.debug("writeArray(boolean[" + off + " ... " + (off + len)
-                    + "])");
-        }
+	if (DEBUG && logger.isDebugEnabled()) {
+	    logger.debug("writeArray(boolean[" + off + " ... " + (off + len)
+		    + "])");
+	}
 
-        do {
-            flush(1);
-            int index = buffer.position();
+	do {
+	    flush(1);
+	    int index = buffer.position();
 
-            int size = Math.min(BUF_SIZE - index, len);
-            for (int i = off; i < off + size; i++) {
-                buffer.put(ref[i] ? (byte) 1 : (byte) 0);
-            }
-            off += size;
-            len -= size;
-        } while (len != 0);
+	    int size = Math.min(BUF_SIZE - index, len);
+	    for (int i = off; i < off + size; i++) {
+		buffer.put(ref[i] ? (byte) 1 : (byte) 0);
+	    }
+	    off += size;
+	    len -= size;
+	} while (len != 0);
     }
 
     @Override
     public void writeArray(byte[] ref, int off, int len) throws IOException {
-        if (DEBUG && logger.isDebugEnabled()) {
-            logger.debug("writeArray(byte[" + off + " ... " + (off + len)
-                    + "])");
-        }
+	if (DEBUG && logger.isDebugEnabled()) {
+	    logger.debug("writeArray(byte[" + off + " ... " + (off + len)
+		    + "])");
+	}
 
-        do {
-            flush(1);
-            int size = Math.min(buffer.remaining(), len);
-            buffer.put(ref, off, size);
-            off += size;
-            len -= size;
-        } while (len != 0);
+	do {
+	    flush(1);
+	    int size = Math.min(buffer.remaining(), len);
+	    buffer.put(ref, off, size);
+	    off += size;
+	    len -= size;
+	} while (len != 0);
     }
 
     @Override
     public void writeArray(char[] ref, int off, int len) throws IOException {
-        if (DEBUG && logger.isDebugEnabled()) {
-            logger.debug("writeArray(char[" + off + " ... " + (off + len)
-                    + "])");
-        }
+	if (DEBUG && logger.isDebugEnabled()) {
+	    logger.debug("writeArray(char[" + off + " ... " + (off + len)
+		    + "])");
+	}
 
-        do {
-            flush(Constants.SIZEOF_CHAR);
-            int index = buffer.position();
+	do {
+	    flush(Constants.SIZEOF_CHAR);
+	    int index = buffer.position();
 
-            int size = Math
-                    .min((BUF_SIZE - index) / Constants.SIZEOF_CHAR, len);
-            CharBuffer c = buffer.asCharBuffer();
-            c.put(ref, off, size);
-            buffer.position(buffer.position() + size * Constants.SIZEOF_SHORT);
+	    int size = Math
+		    .min((BUF_SIZE - index) / Constants.SIZEOF_CHAR, len);
+	    CharBuffer c = buffer.asCharBuffer();
+	    c.put(ref, off, size);
+	    buffer.position(buffer.position() + size * Constants.SIZEOF_SHORT);
 
-            off += size;
-            len -= size;
-        } while (len != 0);
+	    off += size;
+	    len -= size;
+	} while (len != 0);
     }
 
     @Override
     public void writeArray(short[] ref, int off, int len) throws IOException {
-        if (DEBUG && logger.isDebugEnabled()) {
-            logger.debug("writeArray(short[" + off + " ... " + (off + len)
-                    + "])");
-        }
+	if (DEBUG && logger.isDebugEnabled()) {
+	    logger.debug("writeArray(short[" + off + " ... " + (off + len)
+		    + "])");
+	}
 
-        do {
-            flush(Constants.SIZEOF_SHORT);
-            int index = buffer.position();
+	do {
+	    flush(Constants.SIZEOF_SHORT);
+	    int index = buffer.position();
 
-            int size = Math.min((BUF_SIZE - index) / Constants.SIZEOF_SHORT,
-                    len);
-            ShortBuffer s = buffer.asShortBuffer();
-            s.put(ref, off, size);
-            buffer.position(buffer.position() + size * Constants.SIZEOF_SHORT);
+	    int size = Math.min((BUF_SIZE - index) / Constants.SIZEOF_SHORT,
+		    len);
+	    ShortBuffer s = buffer.asShortBuffer();
+	    s.put(ref, off, size);
+	    buffer.position(buffer.position() + size * Constants.SIZEOF_SHORT);
 
-            off += size;
-            len -= size;
-        } while (len != 0);
+	    off += size;
+	    len -= size;
+	} while (len != 0);
     }
 
     @Override
     public void writeArray(int[] ref, int off, int len) throws IOException {
-        if (DEBUG && logger.isDebugEnabled()) {
-            logger.debug("writeArray(int[" + off + " ... " + (off + len) + "])");
-        }
+	if (DEBUG && logger.isDebugEnabled()) {
+	    logger.debug("writeArray(int[" + off + " ... " + (off + len) + "])");
+	}
 
-        do {
-            flush(Constants.SIZEOF_INT);
-            int index = buffer.position();
-            IntBuffer i = buffer.asIntBuffer();
+	do {
+	    flush(Constants.SIZEOF_INT);
+	    int index = buffer.position();
+	    IntBuffer i = buffer.asIntBuffer();
 
-            int size = Math.min((BUF_SIZE - index) / Constants.SIZEOF_INT, len);
-            i.put(ref, off, size);
-            buffer.position(buffer.position() + size * Constants.SIZEOF_INT);
+	    int size = Math.min((BUF_SIZE - index) / Constants.SIZEOF_INT, len);
+	    i.put(ref, off, size);
+	    buffer.position(buffer.position() + size * Constants.SIZEOF_INT);
 
-            off += size;
-            len -= size;
-        } while (len != 0);
+	    off += size;
+	    len -= size;
+	} while (len != 0);
     }
 
     @Override
     public void writeArray(long[] ref, int off, int len) throws IOException {
-        if (DEBUG && logger.isDebugEnabled()) {
-            logger.debug("writeArray(long[" + off + " ... " + (off + len)
-                    + "])");
-        }
+	if (DEBUG && logger.isDebugEnabled()) {
+	    logger.debug("writeArray(long[" + off + " ... " + (off + len)
+		    + "])");
+	}
 
-        do {
-            flush(Constants.SIZEOF_LONG);
-            int index = buffer.position();
-            LongBuffer l = buffer.asLongBuffer();
+	do {
+	    flush(Constants.SIZEOF_LONG);
+	    int index = buffer.position();
+	    LongBuffer l = buffer.asLongBuffer();
 
-            int size = Math
-                    .min((BUF_SIZE - index) / Constants.SIZEOF_LONG, len);
-            l.put(ref, off, size);
-            buffer.position(buffer.position() + size * Constants.SIZEOF_LONG);
+	    int size = Math
+		    .min((BUF_SIZE - index) / Constants.SIZEOF_LONG, len);
+	    l.put(ref, off, size);
+	    buffer.position(buffer.position() + size * Constants.SIZEOF_LONG);
 
-            off += size;
-            len -= size;
-        } while (len != 0);
+	    off += size;
+	    len -= size;
+	} while (len != 0);
     }
 
     @Override
     public void writeArray(float[] ref, int off, int len) throws IOException {
-        if (DEBUG && logger.isDebugEnabled()) {
-            logger.debug("writeArray(float[" + off + " ... " + (off + len)
-                    + "])");
-        }
-        do {
-            flush(Constants.SIZEOF_FLOAT);
-            int index = buffer.position();
-            FloatBuffer f = buffer.asFloatBuffer();
+	if (DEBUG && logger.isDebugEnabled()) {
+	    logger.debug("writeArray(float[" + off + " ... " + (off + len)
+		    + "])");
+	}
+	do {
+	    flush(Constants.SIZEOF_FLOAT);
+	    int index = buffer.position();
+	    FloatBuffer f = buffer.asFloatBuffer();
 
-            int size = Math.min((BUF_SIZE - index) / Constants.SIZEOF_FLOAT,
-                    len);
-            f.put(ref, off, size);
-            buffer.position(buffer.position() + size * Constants.SIZEOF_FLOAT);
+	    int size = Math.min((BUF_SIZE - index) / Constants.SIZEOF_FLOAT,
+		    len);
+	    f.put(ref, off, size);
+	    buffer.position(buffer.position() + size * Constants.SIZEOF_FLOAT);
 
-            off += size;
-            len -= size;
-        } while (len != 0);
+	    off += size;
+	    len -= size;
+	} while (len != 0);
     }
 
     @Override
     public void writeArray(double[] ref, int off, int len) throws IOException {
-        if (DEBUG && logger.isDebugEnabled()) {
-            logger.debug("writeArray(double[" + off + " ... " + (off + len)
-                    + "])");
-        }
+	if (DEBUG && logger.isDebugEnabled()) {
+	    logger.debug("writeArray(double[" + off + " ... " + (off + len)
+		    + "])");
+	}
 
-        do {
-            flush(Constants.SIZEOF_DOUBLE);
-            int index = buffer.position();
-            DoubleBuffer d = buffer.asDoubleBuffer();
+	do {
+	    flush(Constants.SIZEOF_DOUBLE);
+	    int index = buffer.position();
+	    DoubleBuffer d = buffer.asDoubleBuffer();
 
-            int size = Math.min((BUF_SIZE - index) / Constants.SIZEOF_DOUBLE,
-                    len);
-            d.put(ref, off, size);
-            buffer.position(buffer.position() + size * Constants.SIZEOF_DOUBLE);
+	    int size = Math.min((BUF_SIZE - index) / Constants.SIZEOF_DOUBLE,
+		    len);
+	    d.put(ref, off, size);
+	    buffer.position(buffer.position() + size * Constants.SIZEOF_DOUBLE);
 
-            off += size;
-            len -= size;
-        } while (len != 0);
+	    off += size;
+	    len -= size;
+	} while (len != 0);
     }
 
     @Override
     public void flush() throws IOException {
-        flush(BUF_SIZE + 1); /* Forces flush */
+	flush(BUF_SIZE + 1); /* Forces flush */
     }
 
     @Override
     public void finish() {
-        // empty
+	// empty
     }
 
     @Override
     public boolean finished() {
-        return true;
+	return true;
     }
 
     @Override
     public void close() throws IOException {
-        flush();
-        out.close();
+	flush();
+	out.close();
     }
 
     public void clear() throws IOException {
-        flush();
-        buffer = null;
+	flush();
+	buffer = null;
     }
 
     @Override
     public int bufferSize() {
-        return BUF_SIZE;
+	return BUF_SIZE;
     }
 
     @Override
     public void writeByteBuffer(ByteBuffer value) throws IOException {
-        int position = value.position();
-        int len = value.limit() - position;
-        if (value.isDirect()) {
-            flush();
-            while (value.remaining() > 0) {
-                out.write(value);
-            }
-            value.position(position);
-            return;
-        }
-        writeArray(value.array(), value.arrayOffset() + value.position(), len);
+	int position = value.position();
+	int len = value.limit() - position;
+	if (value.isDirect()) {
+	    flush();
+	    while (value.remaining() > 0) {
+		out.write(value);
+	    }
+	    value.position(position);
+	    bytes += len;
+	    return;
+	}
+	writeArray(value.array(), value.arrayOffset() + value.position(), len);
     }
 }
