@@ -5,7 +5,6 @@ package ibis.ipl.impl.ib;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
-import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 
 public class SplitterException extends IOException {
@@ -18,7 +17,7 @@ public class SplitterException extends IOException {
     // Transient, because OutputStream is not Serializable. (Thanks, Selmar
     // Smit!)
     // Note that some of the methods here are meaningless after serialization.
-    private transient ArrayList<WritableByteChannel> streams = new ArrayList<WritableByteChannel>();
+    private transient ArrayList<WriteChannel> streams = new ArrayList<WriteChannel>();
 
     private ArrayList<Exception> exceptions = new ArrayList<Exception>();
 
@@ -26,7 +25,7 @@ public class SplitterException extends IOException {
 	// empty constructor
     }
 
-    public void add(WritableByteChannel s, Exception e) {
+    public void add(WriteChannel s, Exception e) {
 	if (streams.contains(s)) {
 	    System.err.println("AAA, stream was already in splitter exception");
 	}
@@ -39,15 +38,15 @@ public class SplitterException extends IOException {
 	return streams.size();
     }
 
-    public WritableByteChannel[] getStreams() {
-	return streams.toArray(new WritableByteChannel[0]);
+    public WriteChannel[] getStreams() {
+	return streams.toArray(new WriteChannel[0]);
     }
 
     public Exception[] getExceptions() {
 	return exceptions.toArray(new Exception[0]);
     }
 
-    public WritableByteChannel getStream(int pos) {
+    public WriteChannel getStream(int pos) {
 	return streams.get(pos);
     }
 

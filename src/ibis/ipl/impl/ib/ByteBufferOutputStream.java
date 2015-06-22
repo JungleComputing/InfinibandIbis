@@ -15,28 +15,28 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
 import java.nio.ShortBuffer;
-import java.nio.channels.WritableByteChannel;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * This is a complete implementation of <code>DataOutputStream</code>. It is
- * built on top of an <code>WritableByteChannel</code>. There is no need to put
- * any buffering inbetween. This implementation does all the buffering needed.
+ * built on top of a <code>WriteChannel</code>. There is no need to put any
+ * buffering in between. This implementation does all the buffering needed, into
+ * a direct ByteBuffer.
  */
 public final class ByteBufferOutputStream extends DataOutputStream {
 
     private static final Logger logger = LoggerFactory
 	    .getLogger(ByteBufferOutputStream.class);
 
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
 
     /** Size of the buffer in which output data is collected. */
     private final int BUF_SIZE;
 
-    /** The underlying <code>WritableByteChannel</code>. */
-    private WritableByteChannel out;
+    /** The underlying <code>WriteChannel</code>. */
+    private WriteChannel out;
 
     /** The buffer in which output data is collected. */
     private ByteBuffer buffer;
@@ -48,24 +48,34 @@ public final class ByteBufferOutputStream extends DataOutputStream {
      * Constructor.
      * 
      * @param out
-     *            the underlying <code>OutputStream</code>
+     *            the underlying <code>WriteChannel</code>
      * @param bufSize
-     *            the size of the output buffer in bytes
+     *            the size of the ByteBuffer in bytes
      */
-    public ByteBufferOutputStream(WritableByteChannel out, int bufSize) {
+    public ByteBufferOutputStream(WriteChannel out, int bufSize) {
 	this.out = out;
 	BUF_SIZE = bufSize;
 	buffer = ByteBuffer.allocateDirect(BUF_SIZE);
+	// Sender determines the byte order.
 	buffer.order(ByteOrder.nativeOrder());
+	// buffer.order(ByteOrder.BIG_ENDIAN); // For testing ...
+	if (DEBUG && logger.isDebugEnabled()) {
+	    logger.debug("Creating ByteBufferOutputStream " + bufSize,
+		    new Throwable());
+	}
+    }
+
+    public ByteOrder getByteOrder() {
+	return buffer.order();
     }
 
     /**
      * Constructor.
      * 
      * @param out
-     *            the underlying <code>OutputStream</code>
+     *            the underlying <code>WriteChannel</code>
      */
-    public ByteBufferOutputStream(WritableByteChannel out) {
+    public ByteBufferOutputStream(WriteChannel out) {
 	this(out, IOProperties.BUFFER_SIZE);
     }
 
@@ -81,7 +91,7 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 
     /**
      * Checks if there is space for <code>incr</code> more bytes and if not, the
-     * buffer is written to the underlying <code>OutputStream</code>.
+     * buffer is written to the underlying <code>WriteChannel</code>.
      * 
      * @param incr
      *            the space requested
@@ -93,14 +103,17 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 	int index = buffer.position();
 	if (DEBUG && logger.isDebugEnabled()) {
 	    logger.debug("flush(" + incr + ") : " + " "
-		    + (index + incr >= BUF_SIZE) + " " + (index) + ")");
+		    + (index + incr > BUF_SIZE) + " " + (index) + ")");
 	}
 
 	if (index + incr > BUF_SIZE) {
 	    bytes += index;
 	    buffer.limit(index);
 	    buffer.position(0);
-	    out.write(buffer);
+	    while (index > 0) {
+		int w = out.write(buffer);
+		index -= w;
+	    }
 	    buffer.clear();
 	}
     }
@@ -218,7 +231,7 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 		    .min((BUF_SIZE - index) / Constants.SIZEOF_CHAR, len);
 	    CharBuffer c = buffer.asCharBuffer();
 	    c.put(ref, off, size);
-	    buffer.position(buffer.position() + size * Constants.SIZEOF_SHORT);
+	    buffer.position(index + size * Constants.SIZEOF_CHAR);
 
 	    off += size;
 	    len -= size;
@@ -240,7 +253,7 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 		    len);
 	    ShortBuffer s = buffer.asShortBuffer();
 	    s.put(ref, off, size);
-	    buffer.position(buffer.position() + size * Constants.SIZEOF_SHORT);
+	    buffer.position(index + size * Constants.SIZEOF_SHORT);
 
 	    off += size;
 	    len -= size;
@@ -260,7 +273,7 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 
 	    int size = Math.min((BUF_SIZE - index) / Constants.SIZEOF_INT, len);
 	    i.put(ref, off, size);
-	    buffer.position(buffer.position() + size * Constants.SIZEOF_INT);
+	    buffer.position(index + size * Constants.SIZEOF_INT);
 
 	    off += size;
 	    len -= size;
@@ -282,7 +295,7 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 	    int size = Math
 		    .min((BUF_SIZE - index) / Constants.SIZEOF_LONG, len);
 	    l.put(ref, off, size);
-	    buffer.position(buffer.position() + size * Constants.SIZEOF_LONG);
+	    buffer.position(index + size * Constants.SIZEOF_LONG);
 
 	    off += size;
 	    len -= size;
@@ -303,7 +316,7 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 	    int size = Math.min((BUF_SIZE - index) / Constants.SIZEOF_FLOAT,
 		    len);
 	    f.put(ref, off, size);
-	    buffer.position(buffer.position() + size * Constants.SIZEOF_FLOAT);
+	    buffer.position(index + size * Constants.SIZEOF_FLOAT);
 
 	    off += size;
 	    len -= size;
@@ -325,7 +338,7 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 	    int size = Math.min((BUF_SIZE - index) / Constants.SIZEOF_DOUBLE,
 		    len);
 	    d.put(ref, off, size);
-	    buffer.position(buffer.position() + size * Constants.SIZEOF_DOUBLE);
+	    buffer.position(index + size * Constants.SIZEOF_DOUBLE);
 
 	    off += size;
 	    len -= size;
@@ -369,13 +382,14 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 	int len = value.limit() - position;
 	if (value.isDirect()) {
 	    flush();
-	    while (value.remaining() > 0) {
-		out.write(value);
+	    bytes += len;
+	    while (len > 0) {
+		int w = out.write(value);
+		len -= w;
 	    }
 	    value.position(position);
-	    bytes += len;
 	    return;
 	}
-	writeArray(value.array(), value.arrayOffset() + value.position(), len);
+	writeArray(value.array(), value.arrayOffset() + position, len);
     }
 }

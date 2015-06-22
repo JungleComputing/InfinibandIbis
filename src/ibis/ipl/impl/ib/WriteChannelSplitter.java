@@ -6,16 +6,15 @@ import ibis.util.ThreadPool;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 
 /**
- * Contract: write to multiple WritableByteChannels. When an exception occurs,
- * store it and continue. When the data is written to all channels, throw a
- * single exception that contains all previous exceptions. This way, even when
- * one of the channels dies, the rest will receive the data.
+ * Contract: write to multiple WriteChannels. When an exception occurs, store it
+ * and continue. When the data is written to all channels, throw a single
+ * exception that contains all previous exceptions. This way, even when one of
+ * the channels dies, the rest will receive the data.
  **/
-public final class OutputStreamSplitter implements WritableByteChannel {
+public final class WriteChannelSplitter extends WriteChannel {
 
     private static final int MAXTHREADS = 32;
 
@@ -24,22 +23,24 @@ public final class OutputStreamSplitter implements WritableByteChannel {
     private SplitterException savedException = null;
     private long bytesWritten = 0;
 
-    ArrayList<WritableByteChannel> out = new ArrayList<WritableByteChannel>();
+    ArrayList<WriteChannel> out = new ArrayList<WriteChannel>();
 
     private int numSenders = 0;
 
     private class Sender implements Runnable {
 	ByteBuffer buffer;
 	int index;
+	int sz;
 
-	Sender(ByteBuffer buffer, int index) {
+	Sender(ByteBuffer buffer, int sz, int index) {
 	    this.buffer = buffer.duplicate();
+	    this.sz = sz;
 	    this.index = index;
 	}
 
 	@Override
 	public void run() {
-	    doWrite(buffer, index);
+	    doWrite(buffer, sz, index);
 	    finish();
 	}
     }
@@ -58,14 +59,13 @@ public final class OutputStreamSplitter implements WritableByteChannel {
 	}
     }
 
-    void doWrite(ByteBuffer buffer, int index) {
+    private void doWrite(ByteBuffer buffer, int sz, int index) {
 	try {
-	    WritableByteChannel o = out.get(index);
+	    WriteChannel o = out.get(index);
 	    if (o != null) {
-		int r = buffer.remaining();
-		while (r > 0) {
+		while (sz > 0) {
 		    int n = o.write(buffer);
-		    r -= n;
+		    sz -= n;
 		}
 	    }
 	} catch (IOException e) {
@@ -73,9 +73,9 @@ public final class OutputStreamSplitter implements WritableByteChannel {
 	}
     }
 
-    void doClose(int index) {
+    private void doClose(int index) {
 	try {
-	    WritableByteChannel o = out.get(index);
+	    WriteChannel o = out.get(index);
 	    if (o != null) {
 		o.close();
 	    }
@@ -99,21 +99,21 @@ public final class OutputStreamSplitter implements WritableByteChannel {
 	}
     }
 
-    public OutputStreamSplitter() {
-	// empty constructor
+    public WriteChannelSplitter() {
+	super(-1);
     }
 
-    public OutputStreamSplitter(boolean removeOnException, boolean saveException) {
+    public WriteChannelSplitter(boolean removeOnException, boolean saveException) {
 	this();
 	this.removeOnException = removeOnException;
 	this.saveException = saveException;
     }
 
-    public synchronized void add(WritableByteChannel s) {
+    public synchronized void add(WriteChannel s) {
 	out.add(s);
     }
 
-    public synchronized void remove(WritableByteChannel s) throws IOException {
+    public synchronized void remove(WriteChannel s) throws IOException {
 
 	while (numSenders != 0) {
 	    try {
@@ -135,8 +135,9 @@ public final class OutputStreamSplitter implements WritableByteChannel {
     @Override
     public int write(ByteBuffer b) throws IOException {
 	int r = b.remaining();
-	if (out.size() > 0) {
-	    bytesWritten += r * out.size();
+	int sz = out.size();
+	bytesWritten += r * sz;
+	if (sz > 1) {
 	    synchronized (this) {
 		while (numSenders != 0) {
 		    try {
@@ -147,20 +148,23 @@ public final class OutputStreamSplitter implements WritableByteChannel {
 		}
 		numSenders++;
 	    }
-	    for (int i = 1; i < out.size(); i++) {
-		Sender s = new Sender(b, i);
+	    for (int i = 1; i < sz; i++) {
+		Sender s = new Sender(b, r, i);
 		runThread(s, "Splitter sender");
 	    }
-	    doWrite(b, 0);
-	    done();
 	}
+	if (sz > 0) {
+	    doWrite(b, r, 0);
+	}
+	done();
 	return r;
     }
 
     @Override
     public void close() throws IOException {
 
-	if (out.size() > 0) {
+	int sz = out.size();
+	if (sz > 1) {
 	    synchronized (this) {
 		while (numSenders != 0) {
 		    try {
@@ -176,9 +180,11 @@ public final class OutputStreamSplitter implements WritableByteChannel {
 		Closer f = new Closer(i);
 		runThread(f, "Splitter closer");
 	    }
-	    doClose(0);
-	    done();
 	}
+	if (sz > 0) {
+	    doClose(0);
+	}
+	done();
     }
 
     public long bytesWritten() {
@@ -210,18 +216,22 @@ public final class OutputStreamSplitter implements WritableByteChannel {
     }
 
     private void done() throws IOException {
-	synchronized (this) {
-	    numSenders--;
-	    while (numSenders != 0) {
-		try {
-		    wait();
-		} catch (Exception e) {
-		    // Ignored
+	if (out.size() > 1) {
+	    synchronized (this) {
+		numSenders--;
+		while (numSenders != 0) {
+		    try {
+			wait();
+		    } catch (Exception e) {
+			// Ignored
+		    }
 		}
+		notifyAll();
 	    }
-	    notifyAll();
+	}
 
-	    if (savedException != null) {
+	if (savedException != null) {
+	    synchronized (this) {
 		if (removeOnException) {
 		    for (int i = 0; i < out.size(); i++) {
 			if (out.get(i) == null) {

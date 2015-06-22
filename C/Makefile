@@ -3,7 +3,7 @@ INCLUDES	= -I../build/include -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linu
 CFLAGS		= -O -fPIC $(INCLUDES)
 LFLAGS		= -shared -o $(SONAME)
 LIBS		= lib/librdmacm.a
-SRC		= ibcomm.c common.c ibcommunication.c
+SRC		= ibcommunication.c
 OBJ		= $(SRC:.c=.o)
 SONAME		= ../build/classes/libibcommunication.so
 
