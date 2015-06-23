@@ -145,6 +145,10 @@ public final class ByteBufferInputStream extends DataInputStream {
 	}
 	buffer.reset();
 	buffer.limit(buffer.position() + buffered_bytes);
+	if (DEBUG && logger.isInfoEnabled()) {
+	    logger.info("After fillBuffer, bytes = " + bytes + ", remaining = "
+		    + buffer.remaining());
+	}
     }
 
     @Override
