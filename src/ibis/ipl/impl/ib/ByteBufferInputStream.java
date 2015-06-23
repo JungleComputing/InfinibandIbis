@@ -65,8 +65,7 @@ public final class ByteBufferInputStream extends DataInputStream {
 	buffer.order(order);
 	buffer.limit(0);
 	if (DEBUG && logger.isDebugEnabled()) {
-	    logger.debug("Creating ByteBufferInputStream " + bufSize,
-		    new Throwable());
+	    logger.debug("Creating ByteBufferInputStream " + bufSize);
 	}
     }
 
@@ -519,7 +518,6 @@ public final class ByteBufferInputStream extends DataInputStream {
 		value.put(tempBuffer, 0, l);
 	    }
 	    len -= l;
-	    bytes += l;
 	}
 	if (len > 0) {
 	    if (value.isDirect()) {
