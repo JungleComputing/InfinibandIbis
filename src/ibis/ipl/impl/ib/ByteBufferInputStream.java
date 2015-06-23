@@ -83,11 +83,17 @@ public final class ByteBufferInputStream extends DataInputStream {
 
     @Override
     public long bytesRead() {
+	if (DEBUG && logger.isInfoEnabled()) {
+	    logger.info("bytesRead returns " + (bytes - buffer.remaining()));
+	}
 	return bytes - buffer.remaining();
     }
 
     @Override
     public void resetBytesRead() {
+	if (DEBUG && logger.isInfoEnabled()) {
+	    logger.info("resetBytesRead called");
+	}
 	bytes = buffer.remaining();
     }
 
