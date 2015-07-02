@@ -20,6 +20,8 @@ import java.util.Properties;
 
 class IbReceivePort extends ReceivePort implements IbProtocol {
 
+    private static int counter;
+
     private final ByteBuffer closeBuf = ByteBuffer.allocateDirect(1);
 
     class ConnectionHandler extends ReceivePortConnectionInfo implements
@@ -108,7 +110,7 @@ class IbReceivePort extends ReceivePort implements IbProtocol {
         @Override
         protected void upcallCalledFinish() {
             super.upcallCalledFinish();
-            ThreadPool.createNew(this, "ConnectionHandler");
+            ThreadPool.createNew(this, "ConnectionHandler" + counter++);
         }
 
         void reader(boolean fromHandlerThread) throws IOException {
