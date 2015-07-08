@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
 #include <errno.h>
 #include <getopt.h>
 #include <sys/types.h>
@@ -65,17 +66,11 @@ int do_poll(struct pollfd *fds, int timeout)
 	return ret == 1 ? (fds->revents & (POLLERR | POLLHUP)) : ret;
 }
 
-// Defaults for non-blocking.
-static int flags = MSG_DONTWAIT;
-static int blocking = 0;
 static int maxsize = 0;
 
 static int poll_timeout = 0;
 static int keepalive = 0;
 static struct addrinfo ai_hints;
-static int countm1Sent = 0;
-static int countm1Received = 0;
-
 
 
 int getPeerIP(JNIEnv *env, char *buf, int buf_len, int sockfd);
@@ -112,55 +107,49 @@ jint throwException(JNIEnv *env, const char *message, const char *err) {
 static int send_xfer(JNIEnv *env, int sockfd, void *buf, int size)
 {
     int offset, ret;
-
+    int countm1Sent = 0;
+    struct timespec tt;
+    int flags = size > 65536 ? MSG_DONTWAIT : 0;
+    // int flags = 0;
 
     for (offset = 0; offset < size; ) {
 	int sz = size - offset;
 	if (maxsize > 0 && sz > maxsize) sz = maxsize;
 	ret = rs_send(sockfd, buf + offset, sz, flags);
-#if DEBUG
-	if (ret != -1) {
-	    countm1Sent = 0;
-	    printf("rs_send(%d, 0x%x, %d) = %d (%d to go)\n", sockfd, buf + offset, sz, ret, size - offset);
-	    fflush(stdout);
-	} else {
-	    countm1Sent++;
-	    if (countm1Sent == 10000) {
-		printf("%d times rs_send(%d, 0x%x, %d) = %d\n", countm1Sent, sockfd, buf + offset, sz, ret);
-		fflush(stdout);
-		countm1Sent = 0;
-	    }
-	}
-#endif
 	if (ret > 0) {
-	    offset += ret;
-	} else if (ret < 0) {
-	    if (errno == EWOULDBLOCK || errno == EAGAIN) {
-#if DEBUG && TIMEOUT > 0
-		if (blocking) {
-		    printf("timeout at ");
-		    printTm(TIMEOUT);
-		    printf(" rs_send(), still need to send %d bytes to sockfd %d ", size - offset, sockfd);
-		    printIP(env, "", sockfd);
-		    printf("\n");
-		    fflush(stdout);
-		}
+#if DEBUG
+	    printf("rs_send(%d, 0x%x, %d) = %d (%d to go), countm1Sent = %d\n", sockfd, buf + offset, sz, ret, size - offset - ret, countm1Sent);
+	    fflush(stdout);
 #endif
-	    }
-	    else {
-		throwException(env, "rsend", strerror(errno));
-		return ret;
-	    }
-	}
-	else { // ret == 0
+	    countm1Sent = 0;
+	    offset += ret;
+	} else if (ret == 0) {
 	    return -1;
+	} else if (errno == EWOULDBLOCK || errno == EAGAIN) {
+#if DEBUG && TIMEOUT > 0
+		printf("timeout at ");
+		printTm(TIMEOUT);
+		printf(" rs_send(), still need to send %d bytes to sockfd %d ", size - offset, sockfd);
+		printIP(env, "", sockfd);
+		printf("\n");
+		fflush(stdout);
+#endif
+	    countm1Sent++;
+	    if (countm1Sent > 100) {
+		tt.tv_sec = 0;
+		tt.tv_nsec = 10 * countm1Sent;
+		nanosleep(&tt, NULL);
+	    }
+	} else {
+	    throwException(env, "rsend", strerror(errno));
+	    return ret;
 	}
     }
 
     return 0;
 }
 
-static int recv_xfer(JNIEnv *env, int sockfd, void *buf, int size, int fully)
+static int recv_xfer(JNIEnv *env, int sockfd, jobject bb, int size, int off, int fully)
 {
     int offset, ret;
 
@@ -169,6 +158,12 @@ static int recv_xfer(JNIEnv *env, int sockfd, void *buf, int size, int fully)
     }
 
     int limit = fully ? size : 1;
+    int countm1Received = 0;
+    struct timespec tt;
+    int flags = limit > 65536 ? MSG_DONTWAIT : 0;
+
+    void *fa = (*env)->GetDirectBufferAddress(env, bb);
+    void *buf = fa + off;
 
     for (offset = 0; offset < limit; ) {
 	int sz = size - offset;
@@ -178,46 +173,41 @@ static int recv_xfer(JNIEnv *env, int sockfd, void *buf, int size, int fully)
 	ret = rs_recv(sockfd, buf + offset, sz, flags);
 	// fprintf(stdout, "recv done, result = %d\n", ret);
 	// fflush(stdout);
-#if DEBUG
-	if (ret != -1) {
-	    countm1Received = 0;
-	    printf("rs_recv(%d, 0x%x, %d) = %d (%d to go)\n", sockfd, buf + offset, sz, ret, size - offset);
-	    fflush(stdout);
-	} else {
-	    countm1Received++;
-	    if (countm1Received == 10000) {
-		printf("%d times rs_recv(%d, 0x%x, %d) = %d\n", countm1Received, sockfd, buf + offset, sz, ret);
-		fflush(stdout);
-		countm1Received = 0;
-	    }
-	}
-#endif
 	if (ret > 0) {
-	    offset += ret;
-	} 
-	else if (ret < 0) {
-	    if (errno == EWOULDBLOCK || errno == EAGAIN) {
-#if DEBUG && TIMEOUT > 0
-		if (blocking) {
-		    printf("timeout at ");
-		    printTm(TIMEOUT);
-		    printf(" rs_recv(), still expecting %d bytes from sockfd %d ", size - offset, sockfd);
-		    printIP(env, "", sockfd);
-		    printf("\n");
-		    fflush(stdout);
-		}
+#if DEBUG
+	    printf("rs_recv(%d, 0x%x, %d) = %d (%d to go), countm1Received = %d\n", sockfd, buf + offset, sz, ret, size - ret - offset, countm1Received);
+	    fflush(stdout);
 #endif
-	    }
-	    else {
-		throwException(env, "rrecv", strerror(errno));
-		return ret;
-	    }
-	}
-	else { // ret == 0
+	    countm1Received = 0;
+	    offset += ret;
+	} else if (ret == 0) {
 	    if (fully) {
 		throwException(env, "rrecv", "end of input");
 	    }
 	    return 0;
+	} else if (errno == EWOULDBLOCK || errno == EAGAIN) {
+#if DEBUG && TIMEOUT > 0
+		printf("timeout at ");
+		printTm(TIMEOUT);
+		printf(" rs_recv(), still expecting %d bytes from sockfd %d ", size - offset, sockfd);
+		printIP(env, "", sockfd);
+		printf("\n");
+		fflush(stdout);
+#endif
+	    countm1Received++;
+	    // if (countm1Received > 100) {
+		// tt.tv_sec = 0;
+		// tt.tv_nsec = 100 * countm1Received;
+		// nanosleep(&tt, NULL);	// May invalidate buffer address (at termination)
+		// fa = (*env)->GetDirectBufferAddress(env, bb);
+		// if (fa == NULL) {
+		//     return offset == 0 ? ret : offset;
+		// }
+		// buf = fa + off;
+	    // }
+	} else {
+	    throwException(env, "rrecv", strerror(errno));
+	    return ret;
 	}
     }
 
@@ -259,8 +249,8 @@ static void set_options(JNIEnv *env, int rs)
     val = 1;
     rs_setsockopt(rs, IPPROTO_TCP, TCP_NODELAY, (void *) &val, sizeof(val));
 
-    if (flags & MSG_DONTWAIT)
-	rs_fcntl(rs, F_SETFL, O_NONBLOCK);
+    // if (flags & MSG_DONTWAIT)
+// 	rs_fcntl(rs, F_SETFL, O_NONBLOCK);
 
     if (USE_RS) {
 	val = 0;
@@ -269,7 +259,6 @@ static void set_options(JNIEnv *env, int rs)
 
 
 #if TIMEOUT > 0
-    if (blocking) {
 	struct timeval timeout;      
 	timeout.tv_sec = TIMEOUT;
 	timeout.tv_usec = 0;
@@ -286,7 +275,6 @@ static void set_options(JNIEnv *env, int rs)
 		printf("setsockopt failed\n");
 		fflush(stdout);
 	}
-    }
 #endif
 
     if (keepalive)
@@ -600,7 +588,7 @@ JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_receive2(JNIEnv *en
 
     gettimeofday(&start, NULL);
 #endif
-    retval = recv_xfer(env, sockfd, fa + offset, size, (int) fully);
+    retval = recv_xfer(env, sockfd, bb, size, offset, (int) fully);
 #if TIMING
     gettimeofday(&end, NULL);
     printTime(start, end, "receive");
@@ -646,10 +634,9 @@ JNIEXPORT void JNICALL Java_ibis_ipl_impl_ib_IBCommunication_initialize(JNIEnv *
 
     maxsize = jmaxsize;
     if (jblocking) {
-	blocking = 1;
-	flags = 0;
     } else {
-	flags = MSG_DONTWAIT;
-	blocking = 0;
+#if TIMEOUT > 0
+	throwException(env, "cannot set non-blocking when TIMEOUT is set", strerror(errno));
+#endif
     }
 }

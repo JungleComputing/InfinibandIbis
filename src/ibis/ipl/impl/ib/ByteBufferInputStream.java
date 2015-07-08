@@ -532,6 +532,9 @@ public final class ByteBufferInputStream extends DataInputStream {
 	if (len > 0) {
 	    if (value.isDirect()) {
 		in.readFully(value);
+                if (DEBUG && logger.isDebugEnabled()) {
+                    logger.debug("Read " + len + " bytes of a ByteBuffer");
+                }
 		bytes += len;
 		len = 0;
 	    } else {

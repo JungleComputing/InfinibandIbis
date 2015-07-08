@@ -116,6 +116,9 @@ public final class ByteBufferOutputStream extends DataOutputStream {
 	    }
 	    buffer.clear();
 	}
+	if (DEBUG && logger.isDebugEnabled()) {
+	    logger.debug("flush done");
+	}
     }
 
     @Override
@@ -380,11 +383,17 @@ public final class ByteBufferOutputStream extends DataOutputStream {
     public void writeByteBuffer(ByteBuffer value) throws IOException {
 	int position = value.position();
 	int len = value.limit() - position;
+        if (DEBUG && logger.isDebugEnabled()) {
+            logger.debug("Writing " + len + " bytes of a ByteBuffer");
+        }
 	if (value.isDirect()) {
 	    flush();
 	    bytes += len;
 	    while (len > 0) {
 		int w = out.write(value);
+                if (DEBUG && logger.isDebugEnabled()) {
+                    logger.debug("Wrote " + w + " bytes of a ByteBuffer");
+                }
 		len -= w;
 	    }
 	    value.position(position);
