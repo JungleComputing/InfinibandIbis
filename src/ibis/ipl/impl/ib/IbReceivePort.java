@@ -2,6 +2,10 @@
 
 package ibis.ipl.impl.ib;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Properties;
+
 import ibis.io.Conversion;
 import ibis.ipl.MessageUpcall;
 import ibis.ipl.PortType;
@@ -14,25 +18,27 @@ import ibis.ipl.impl.ReceivePortIdentifier;
 import ibis.ipl.impl.SendPortIdentifier;
 import ibis.util.ThreadPool;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.Properties;
-
 class IbReceivePort extends ReceivePort implements IbProtocol {
 
     private static int counter;
 
     private final ByteBuffer closeBuf = ByteBuffer.allocateDirect(1);
 
-    class ConnectionHandler extends ReceivePortConnectionInfo implements
-            Runnable, IbProtocol {
+    private int senders;
+
+    private static final int MAX_SENDERS = 3;
+
+    class ConnectionHandler extends ReceivePortConnectionInfo
+            implements Runnable, IbProtocol {
 
         private final IbSocket s;
+        private final IbReceivePort p;
 
         ConnectionHandler(SendPortIdentifier origin, IbSocket s,
                 ReceivePort port, ByteBufferInputStream in) throws IOException {
             super(origin, port, in);
             this.s = s;
+            this.p = (IbReceivePort) port;
         }
 
         @Override
@@ -72,10 +78,11 @@ class IbReceivePort extends ReceivePort implements IbProtocol {
                         }
 
                         synchronized (port) {
-                            if (reader_busy
-                                    || ((IbReceivePort) port).getPortMessage() != null) {
+                            if (reader_busy || ((IbReceivePort) port)
+                                    .getPortMessage() != null) {
                                 if (logger.isDebugEnabled()) {
-                                    logger.debug("lazy handler woke up, continues");
+                                    logger.debug(
+                                            "lazy handler woke up, continues");
                                 }
                                 if (interval < 1000) {
                                     interval += 10;
@@ -101,8 +108,8 @@ class IbReceivePort extends ReceivePort implements IbProtocol {
                     reader(true);
                 }
             } catch (Throwable e) {
-                logger.info("ConnectionHandler.run, connected " + "to "
-                        + origin + ", caught exception", e);
+                logger.info("ConnectionHandler.run, connected " + "to " + origin
+                        + ", caught exception", e);
                 close(e);
             }
         }
@@ -130,15 +137,29 @@ class IbReceivePort extends ReceivePort implements IbProtocol {
                 switch (opcode) {
                 case NEW_RECEIVER:
                     if (logger.isDebugEnabled()) {
-                        logger.debug(name + ": Got a NEW_RECEIVER from "
-                                + origin);
+                        logger.debug(
+                                name + ": Got a NEW_RECEIVER from " + origin);
                     }
                     newStream();
                     break;
                 case NEW_MESSAGE:
                     if (logger.isDebugEnabled()) {
-                        logger.debug(name + ": Got a NEW_MESSAGE from "
-                                + origin);
+                        logger.debug(
+                                name + ": Got a NEW_MESSAGE from " + origin);
+                    }
+                    if (type.hasCapability("limitSenders")) {
+                        synchronized (p) {
+                            while (p.senders >= MAX_SENDERS) {
+                                try {
+                                    p.wait();
+                                } catch (InterruptedException e) {
+                                    // ignore
+                                }
+                            }
+                            p.senders++;
+                        }
+                        s.getOutputChannel().write(closeBuf);
+                        closeBuf.rewind();
                     }
                     message.setFinished(false);
                     if (numbered) {
@@ -155,9 +176,9 @@ class IbReceivePort extends ReceivePort implements IbProtocol {
                     break;
                 case CLOSE_ALL_CONNECTIONS:
                     if (logger.isDebugEnabled()) {
-                        logger.debug(name
-                                + ": Got a CLOSE_ALL_CONNECTIONS from "
-                                + origin);
+                        logger.debug(
+                                name + ": Got a CLOSE_ALL_CONNECTIONS from "
+                                        + origin);
                     }
                     close(null);
                     if (lazy_connectionhandler_thread && !fromHandlerThread) {
@@ -170,8 +191,8 @@ class IbReceivePort extends ReceivePort implements IbProtocol {
                     return;
                 case CLOSE_ONE_CONNECTION:
                     if (logger.isDebugEnabled()) {
-                        logger.debug(name
-                                + ": Got a CLOSE_ONE_CONNECTION from " + origin);
+                        logger.debug(name + ": Got a CLOSE_ONE_CONNECTION from "
+                                + origin);
                     }
                     // read the receiveport identifier from which the sendport
                     // disconnects.
@@ -235,7 +256,8 @@ class IbReceivePort extends ReceivePort implements IbProtocol {
                         } catch (Throwable e) {
                             // ignore
                         }
-                        if (lazy_connectionhandler_thread && !fromHandlerThread) {
+                        if (lazy_connectionhandler_thread
+                                && !fromHandlerThread) {
                             // Wake up the connection handler thread so that it
                             // can die.
                             synchronized (this) {
@@ -258,13 +280,17 @@ class IbReceivePort extends ReceivePort implements IbProtocol {
 
     IbReceivePort(Ibis ibis, PortType type, String name, MessageUpcall upcall,
             ReceivePortConnectUpcall connUpcall, Properties props)
-            throws IOException {
+                    throws IOException {
         super(ibis, type, name, upcall, connUpcall, props);
-
-        lazy_connectionhandler_thread = upcall == null
-                && connUpcall == null
-                && (type.hasCapability(PortType.CONNECTION_ONE_TO_ONE) || type
-                        .hasCapability(PortType.CONNECTION_ONE_TO_MANY))
+        if (type.hasCapability("limitSenders")) {
+            if (!type.hasCapability(PortType.CONNECTION_MANY_TO_ONE)) {
+                throw new IOException(
+                        "'limitSenders' capability is only allowed on many-to-one port types");
+            }
+        }
+        lazy_connectionhandler_thread = upcall == null && connUpcall == null
+                && (type.hasCapability(PortType.CONNECTION_ONE_TO_ONE)
+                        || type.hasCapability(PortType.CONNECTION_ONE_TO_MANY))
                 && !type.hasCapability(PortType.RECEIVE_POLL)
                 && !type.hasCapability(PortType.RECEIVE_TIMEOUT);
     }
@@ -359,8 +385,8 @@ class IbReceivePort extends ReceivePort implements IbProtocol {
         }
     }
 
-    void connect(SendPortIdentifier origin, IbSocket s, ByteBufferInputStream in)
-            throws IOException {
+    void connect(SendPortIdentifier origin, IbSocket s,
+            ByteBufferInputStream in) throws IOException {
         ConnectionHandler conn;
 
         synchronized (this) {
@@ -385,6 +411,37 @@ class IbReceivePort extends ReceivePort implements IbProtocol {
             }
         }
         super.closePort(timeout);
+    }
+
+    @Override
+    public void finishMessage(ReadMessage r, long cnt) {
+        if (type.hasCapability("limitSenders")) {
+            synchronized (this) {
+                senders--;
+                notifyAll();
+            }
+        }
+        super.finishMessage(r, cnt);
+
+    }
+
+    /**
+     * Notifies the port that {@link ReadMessage#finish(IOException)} was called
+     * on the specified message. The port should close the connection, with the
+     * specified reason.
+     *
+     * @param r
+     *            the message.
+     * @param e
+     *            the Exception.
+     */
+    @Override
+    public synchronized void finishMessage(ReadMessage r, IOException e) {
+        if (type.hasCapability("limitSenders")) {
+            senders--;
+            notifyAll();
+        }
+        super.finishMessage(r, e);
     }
 
 }

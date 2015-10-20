@@ -2,6 +2,12 @@
 
 package ibis.ipl.impl.ib;
 
+import java.util.ArrayList;
+import java.util.Properties;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import ibis.ipl.CapabilitySet;
 import ibis.ipl.Credentials;
 import ibis.ipl.Ibis;
@@ -10,12 +16,6 @@ import ibis.ipl.IbisCreationFailedException;
 import ibis.ipl.IbisFactory;
 import ibis.ipl.PortType;
 import ibis.ipl.RegistryEventHandler;
-
-import java.util.ArrayList;
-import java.util.Properties;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class IbIbisStarter extends ibis.ipl.IbisStarter {
 
@@ -41,7 +41,7 @@ public final class IbIbisStarter extends ibis.ipl.IbisStarter {
             PortType.CONNECTION_ONE_TO_MANY, PortType.CONNECTION_ONE_TO_ONE,
             PortType.RECEIVE_POLL, PortType.RECEIVE_AUTO_UPCALLS,
             PortType.RECEIVE_EXPLICIT, PortType.RECEIVE_POLL_UPCALLS,
-            PortType.RECEIVE_TIMEOUT);
+            PortType.RECEIVE_TIMEOUT, "limitSenders");
 
     public IbIbisStarter(String nickName, String iplVersion,
             String implementationVersion) {
@@ -86,7 +86,7 @@ public final class IbIbisStarter extends ibis.ipl.IbisStarter {
             Properties userProperties, IbisCapabilities capabilities,
             Credentials credentials, byte[] applicationTag,
             PortType[] portTypes, String specifiedSubImplementation)
-            throws IbisCreationFailedException {
+                    throws IbisCreationFailedException {
         return new IbIbis(registryEventHandler, capabilities, credentials,
                 applicationTag, portTypes, userProperties, this);
     }
