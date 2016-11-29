@@ -24,21 +24,15 @@ class IbReceivePort extends ReceivePort implements IbProtocol {
 
     private final ByteBuffer closeBuf = ByteBuffer.allocateDirect(1);
 
-    private int senders;
-
-    private static final int MAX_SENDERS = 3;
-
     class ConnectionHandler extends ReceivePortConnectionInfo
             implements Runnable, IbProtocol {
 
         private final IbSocket s;
-        private final IbReceivePort p;
 
         ConnectionHandler(SendPortIdentifier origin, IbSocket s,
                 ReceivePort port, ByteBufferInputStream in) throws IOException {
             super(origin, port, in);
             this.s = s;
-            this.p = (IbReceivePort) port;
         }
 
         @Override
@@ -146,20 +140,6 @@ class IbReceivePort extends ReceivePort implements IbProtocol {
                     if (logger.isDebugEnabled()) {
                         logger.debug(
                                 name + ": Got a NEW_MESSAGE from " + origin);
-                    }
-                    if (type.hasCapability("limitSenders")) {
-                        synchronized (p) {
-                            while (p.senders >= MAX_SENDERS) {
-                                try {
-                                    p.wait();
-                                } catch (InterruptedException e) {
-                                    // ignore
-                                }
-                            }
-                            p.senders++;
-                        }
-                        s.getOutputChannel().write(closeBuf);
-                        closeBuf.rewind();
                     }
                     message.setFinished(false);
                     if (numbered) {
@@ -282,12 +262,6 @@ class IbReceivePort extends ReceivePort implements IbProtocol {
             ReceivePortConnectUpcall connUpcall, Properties props)
                     throws IOException {
         super(ibis, type, name, upcall, connUpcall, props);
-        if (type.hasCapability("limitSenders")) {
-            if (!type.hasCapability(PortType.CONNECTION_MANY_TO_ONE)) {
-                throw new IOException(
-                        "'limitSenders' capability is only allowed on many-to-one port types");
-            }
-        }
         lazy_connectionhandler_thread = upcall == null && connUpcall == null
                 && (type.hasCapability(PortType.CONNECTION_ONE_TO_ONE)
                         || type.hasCapability(PortType.CONNECTION_ONE_TO_MANY))
@@ -412,36 +386,4 @@ class IbReceivePort extends ReceivePort implements IbProtocol {
         }
         super.closePort(timeout);
     }
-
-    @Override
-    public void finishMessage(ReadMessage r, long cnt) {
-        if (type.hasCapability("limitSenders")) {
-            synchronized (this) {
-                senders--;
-                notifyAll();
-            }
-        }
-        super.finishMessage(r, cnt);
-
-    }
-
-    /**
-     * Notifies the port that {@link ReadMessage#finish(IOException)} was called
-     * on the specified message. The port should close the connection, with the
-     * specified reason.
-     *
-     * @param r
-     *            the message.
-     * @param e
-     *            the Exception.
-     */
-    @Override
-    public synchronized void finishMessage(ReadMessage r, IOException e) {
-        if (type.hasCapability("limitSenders")) {
-            senders--;
-            notifyAll();
-        }
-        super.finishMessage(r, e);
-    }
-
 }

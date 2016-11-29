@@ -13,7 +13,12 @@ import java.nio.ByteBuffer;
 
 import cz.adamh.utils.NativeUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class IBCommunication {
+
+    static final Logger logger = LoggerFactory.getLogger("ibis.ipl.impl.ib.IBCommunication");
 
     static {
         try {
@@ -132,9 +137,15 @@ public class IBCommunication {
             throw new IbisIOException("invalid socket file descriptor");
         }
         int size = bb.remaining();
+        if (logger.isDebugEnabled()) {
+            logger.debug("Writing " + size + " bytes");
+        }
         int s = send2(sockfd, bb, bb.position(), size);
         if (s != 0) {
             throw new IbisIOException("Something wrong in send2");
+        }
+        if (logger.isDebugEnabled()) {
+            logger.debug("Writing done");
         }
         bb.position(bb.limit());
         return size;
@@ -148,9 +159,15 @@ public class IBCommunication {
         if (!bb.isDirect()) {
             throw new IbisIOException("Direct bytebuffer expected");
         }
+        if (logger.isDebugEnabled()) {
+            logger.debug("Reading " + size + " bytes");
+        }
         int r = receive2(sockfd, bb, bb.position(), size, false);
         if (r < 0) {
             throw new IbisIOException("Something wrong in receive2");
+        }
+        if (logger.isDebugEnabled()) {
+            logger.debug("Read " + r + " bytes");
         }
         bb.position(bb.position() + r);
         return r;
@@ -164,7 +181,13 @@ public class IBCommunication {
         if (!bb.isDirect()) {
             throw new IbisIOException("Direct bytebuffer expected");
         }
+        if (logger.isDebugEnabled()) {
+            logger.debug("Reading " + size + " bytes");
+        }
         int r = receive2(sockfd, bb, bb.position(), size, true);
+        if (logger.isDebugEnabled()) {
+            logger.debug("Read " + r + " bytes");
+        }
         if (r != size) {
             throw new IbisIOException("Something wrong in receive2");
         }

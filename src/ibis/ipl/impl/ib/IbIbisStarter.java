@@ -41,7 +41,7 @@ public final class IbIbisStarter extends ibis.ipl.IbisStarter {
             PortType.CONNECTION_ONE_TO_MANY, PortType.CONNECTION_ONE_TO_ONE,
             PortType.RECEIVE_POLL, PortType.RECEIVE_AUTO_UPCALLS,
             PortType.RECEIVE_EXPLICIT, PortType.RECEIVE_POLL_UPCALLS,
-            PortType.RECEIVE_TIMEOUT, "limitSenders");
+            PortType.RECEIVE_TIMEOUT);
 
     public IbIbisStarter(String nickName, String iplVersion,
             String implementationVersion) {

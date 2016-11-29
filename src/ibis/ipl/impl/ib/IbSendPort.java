@@ -56,12 +56,6 @@ final class IbSendPort extends SendPort implements IbProtocol {
     IbSendPort(Ibis ibis, PortType type, String name,
             SendPortDisconnectUpcall cU, Properties props) throws IOException {
         super(ibis, type, name, cU, props);
-        if (type.hasCapability("limitSenders")) {
-            if (!type.hasCapability(PortType.CONNECTION_MANY_TO_ONE)) {
-                throw new IOException(
-                        "'limitSenders' capability is only allowed on many-to-one port types");
-            }
-        }
         splitter = new WriteChannelSplitter(
                 !type.hasCapability(PortType.CONNECTION_ONE_TO_ONE)
                         && !type.hasCapability(PortType.CONNECTION_MANY_TO_ONE),
@@ -130,12 +124,6 @@ final class IbSendPort extends SendPort implements IbProtocol {
     @Override
     protected void announceNewMessage() throws IOException {
         out.writeByte(NEW_MESSAGE);
-        if (type.hasCapability(PortType.CONNECTION_MANY_TO_ONE)
-                && type.hasCapability("limitSenders")) {
-            out.flush();
-            Conn c = (Conn) getInfo((ReceivePortIdentifier) connectedTo()[0]);
-            c.s.getInputChannel().read(closeBuf);
-        }
         if (type.hasCapability(PortType.COMMUNICATION_NUMBERED)) {
             out.writeLong(ibis.registry().getSequenceNumber(name));
         }

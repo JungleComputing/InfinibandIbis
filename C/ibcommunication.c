@@ -221,13 +221,13 @@ static void set_keepalive(JNIEnv *env, int rs)
     socklen_t optlen = sizeof(optlen);
 
     optval = 1;
-    if (rs_setsockopt(rs, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen)) {
+    if (rs_setsockopt(rs, SOL_SOCKET, SO_KEEPALIVE, (void *) &optval, optlen)) {
 	throwException(env, "rsetsockopt SO_KEEPALIVE", strerror(errno));
 	return;
     }
 
     optval = keepalive;
-    if (rs_setsockopt(rs, IPPROTO_TCP, TCP_KEEPIDLE, &optval, optlen))
+    if (rs_setsockopt(rs, IPPROTO_TCP, TCP_KEEPIDLE, (void *) &optval, optlen))
 	throwException(env, "rsetsockopt SO_KEEPIDLE", strerror(errno));
 /*
     if (!(rs_getsockopt(rs, SOL_SOCKET, SO_KEEPALIVE, &optval, &optlen)))
@@ -241,6 +241,7 @@ static void set_keepalive(JNIEnv *env, int rs)
 static void set_options(JNIEnv *env, int rs)
 {
     int val;
+    socklen_t vallen;
 
     val = 1 << 19;
     rs_setsockopt(rs, SOL_SOCKET, SO_SNDBUF, (void *) &val, sizeof val);
@@ -254,7 +255,7 @@ static void set_options(JNIEnv *env, int rs)
 
     if (USE_RS) {
 	val = 0;
-	rs_setsockopt(rs, SOL_RDMA, RDMA_INLINE, &val, sizeof val);
+	rs_setsockopt(rs, SOL_RDMA, RDMA_INLINE, (void *) &val, sizeof val);
     }
 
 
@@ -264,13 +265,13 @@ static void set_options(JNIEnv *env, int rs)
 	timeout.tv_usec = 0;
 
 	if (!USE_RS) {
-	    if (rs_setsockopt (rs, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
+	    if (rs_setsockopt (rs, SOL_SOCKET, SO_RCVTIMEO, (void *)&timeout,
 			sizeof(timeout)) < 0) {
 		printf("setsockopt failed\n");
 		fflush(stdout);
 	    }
 
-	    if (rs_setsockopt (rs, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
+	    if (rs_setsockopt (rs, SOL_SOCKET, SO_SNDTIMEO, (void *)&timeout,
 			sizeof(timeout)) < 0)
 		printf("setsockopt failed\n");
 		fflush(stdout);
@@ -499,6 +500,8 @@ JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_serverCreate2(JNIEn
 	    break;
 	}
 
+	set_options(env, lrs);
+
 	ret = rs_listen(lrs, SOMAXCONN);
 	if (ret) {
 	    if (errno == EADDRINUSE) {
@@ -541,7 +544,6 @@ JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_accept2(JNIEnv *env
 	return sockfd;
     }
 
-    set_options(env, sockfd);
 #if DEBUG
     puts("done Accept");
     fflush(stdout);
