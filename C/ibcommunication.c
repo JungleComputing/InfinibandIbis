@@ -16,6 +16,7 @@
 #include <netinet/tcp.h>
 #include <sys/time.h>
 #include <byteswap.h>
+#include <arpa/inet.h>
 
 #include <jni.h>
 
@@ -76,15 +77,15 @@ static struct addrinfo ai_hints;
 int getPeerIP(JNIEnv *env, char *buf, int buf_len, int sockfd);
 
 
+#if DEBUG && TIMOUT > 0
 static void printTm(int secBefore) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     tv.tv_sec -= secBefore;
     struct tm tm = *localtime(&tv.tv_sec);
 
-    printf("%02d:%02d:%02d-%02d", tm.tm_hour, tm.tm_min, tm.tm_sec, tv.tv_usec / 10000);
+    printf("%02d:%02d:%02d-%02ld", tm.tm_hour, tm.tm_min, tm.tm_sec, tv.tv_usec / 10000);
 }
-
 
 static void printIP(JNIEnv *env, char * prefix, int sockfd) {
     char ipstr[INET6_ADDRSTRLEN + 33];
@@ -92,6 +93,7 @@ static void printIP(JNIEnv *env, char * prefix, int sockfd) {
     getPeerIP(env, ipstr, INET6_ADDRSTRLEN, sockfd);
     printf("%s%s\n", prefix, ipstr);
 }
+#endif
 
 
 jint throwException(JNIEnv *env, const char *message, const char *err) {
@@ -159,7 +161,7 @@ static int recv_xfer(JNIEnv *env, int sockfd, jobject bb, int size, int off, int
 
     int limit = fully ? size : 1;
     int countm1Received = 0;
-    struct timespec tt;
+    //struct timespec tt;
     int flags = limit > 65536 ? MSG_DONTWAIT : 0;
 
     void *fa = (*env)->GetDirectBufferAddress(env, bb);
@@ -241,7 +243,6 @@ static void set_keepalive(JNIEnv *env, int rs)
 static void set_options(JNIEnv *env, int rs)
 {
     int val;
-    socklen_t vallen;
 
     val = 1 << 19;
     rs_setsockopt(rs, SOL_SOCKET, SO_SNDBUF, (void *) &val, sizeof val);
@@ -300,7 +301,7 @@ int getPeerIP(JNIEnv *env, char *buffer, int len_buf, int sockfd) {
     if (addr.ss_family == AF_INET) {
 	struct sockaddr_in *s = (struct sockaddr_in *)&addr;
 	port = ntohs(s->sin_port);
-	inet_ntop(AF_INET, &s->sin_addr, buffer, len_buf);
+ 	inet_ntop(AF_INET, &s->sin_addr, buffer, len_buf);
     } else { // AF_INET6
 	struct sockaddr_in6 *s = (struct sockaddr_in6 *)&addr;
 	port = ntohs(s->sin6_port);
@@ -515,7 +516,7 @@ JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_serverCreate2(JNIEn
 
     if (ret && lrs > 0)
 	rs_close(lrs);
-free:
+
     freeaddrinfo(ai);
 
     if (ret) {
@@ -582,7 +583,6 @@ JNIEXPORT jint JNICALL Java_ibis_ipl_impl_ib_IBCommunication_receive2(JNIEnv *en
     struct timeval end;
     gettimeofday(&start, NULL);
 #endif
-    void *fa = (*env)->GetDirectBufferAddress(env, bb);
 
 #if TIMING
     gettimeofday(&end, NULL);

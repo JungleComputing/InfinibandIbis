@@ -1,7 +1,7 @@
 CC		= gcc
 INCLUDES	= -I../build/include -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux
-CFLAGS		= -O -fPIC $(INCLUDES)
-LFLAGS		= -shared -o $(SONAME)
+CFLAGS		= -Wall -O -fPIC $(INCLUDES)
+LFLAGS		= -Wall -shared -o $(SONAME)
 SRC		= ibcommunication.c
 OBJ		= $(SRC:.c=.o)
 SONAME		= ../build/classes/libibcommunication.so
