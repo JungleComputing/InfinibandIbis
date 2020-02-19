@@ -1,0 +1,157 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id 'com.jfrog.bintray' version '1.8.0'
+    id 'com.github.hierynomus.license' version '0.14.0'
+    id 'c'
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile 'nl.junglecomputing.ipl:ipl:2.3.3'
+    compile 'nl.junglecomputing.ipl:ibis-util:2.3.3'
+    compile 'nl.junglecomputing.ipl:ibis-io:2.3.3'
+    compile 'nl.junglecomputing.ipl:ipl-support:2.3.3'
+    compile 'org.slf4j:slf4j-api:1.7.21'
+
+    implementation 'org.slf4j:slf4j-log4j12:1.7.2'
+}
+
+version = '1.0'
+
+def pomConfig = {
+    scm {
+	url "https://github.com/junglecomputing/InfinibandIbis.git"
+    }
+}
+
+license {
+    ext.copyright_year = 2019
+    ext.copyright_owner = 'Vrije Universiteit Amsterdam'
+    header rootProject.file('gradle/HEADER')
+    strictCheck true
+    excludes(["**/log4j.properties"])
+    mapping {
+	// IntelliJ IDEA gives "Dangling Javadoc comment." warning when default JAVADOC_STYLE is used,
+        // so switch to comment style
+	java = 'SLASHSTAR_STYLE'
+    }
+}
+
+licenseFormat.description = "Applies the license found in the header file in files missing the header"
+
+model {
+    platforms {
+	 x64 {
+             architecture "x64"
+	 }
+    }
+
+    components {
+	ibcommunication(NativeLibrarySpec) {
+	    binaries.all {
+		if (targetPlatform.operatingSystem.linux) {
+		    cCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include"
+		    cCompiler.args '-I', "${org.gradle.internal.jvm.Jvm.current().javaHome}/include/linux"
+		    cCompiler.args '-I', "${buildDir}/include"
+		    cCompiler.args '-O'
+		    cCompiler.args '-Wall'
+		    linker.args '-libverbs'
+		    linker.args '-lpthread'
+		    linker.args '-lrdmacm'
+		}
+	    }
+	}
+    }
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+javadoc.failOnError = false
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+javadoc {
+    include 'ibis/ipl/impl/ib/*'
+}
+
+artifacts {
+    archives sourcesJar
+    archives javadocJar
+}
+
+publishing {
+    publications {
+	mavenJava(MavenPublication) {
+	    from components.java
+	    artifact sourcesJar {
+		classifier "sources"
+	    }
+	    artifact javadocJar {
+		classifier "javadoc"
+	    }
+	    groupId 'nl.junglecomputing'
+	    artifactId 'InfinibandIbis'
+	    version version
+
+	    pom.withXml {
+		def root = asNode()
+                root.appendNode('url', 'https://github.com/junglecomputing/InfinibandIbis.git')
+                root.children().last() + pomConfig
+	    }
+	}
+    }
+}
+
+tasks.withType(Jar) {
+    destinationDir = file("$rootDir/lib")
+}
+
+task copyRuntimeLibs(type: Copy) {
+    into "lib"
+    from configurations.runtime
+}
+
+task generateJniHeaders(type:Exec) {
+    def classpath = sourceSets.main.output.classesDir
+    def appclasspath = configurations.runtime.files*.getAbsolutePath().join(":")
+    def includeFile = "${buildDir}/include/ibcommunication.h"                     
+    commandLine "javah", "-o", includeFile, "-classpath", "$classpath:$appclasspath", "ibis.ipl.impl.ib.IBCommunication"
+    dependsOn classes
+    finalizedBy 'ibcommunicationSharedLibrary'
+}
+
+jar {
+    dependsOn generateJniHeaders
+    dependsOn 'ibcommunicationSharedLibrary'
+    manifest {
+	attributes("Ibis-Starter-Class": "ibis.ipl.impl.ib.IbIbisStarter",
+	        "Ibis-IPL-Version": "2.3.3",
+		"Ibis-Implementation-Version": "InfinibandIbis${version}",
+		"Ibis-NickName": "ib")
+    }
+    from "$buildDir/libs/ibcommunication/shared"
+}
+
+bintray {
+    user = System.getenv('BINTRAY_NAME')
+    key = System.getenv('BINTRAY_APIKEY')
+    publications = ['mavenJava']
+    pkg {
+	repo = 'JungleComputing'
+	name = 'InfinibandIbis'
+	userOrg = "$user"
+	vcsUrl = 'https://github.com/junglecomputing/InfinibandIbis.git'
+	licenses = ['Apache-2.0']
+    }
+}
+
+defaultTasks 'assemble'

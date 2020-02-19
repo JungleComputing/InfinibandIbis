@@ -1,5 +1,6 @@
 /tmp-eclipse
 /build
+/lib
 .*
 *.o
 *.bak
